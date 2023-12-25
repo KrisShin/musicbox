@@ -33,8 +33,7 @@ TORTOISE_ORM = {
             "models": [
                 'aerich.models',
                 'common.models',
-                'user.models',
-                'article.models',
+                'modules.music.models',
             ],
             "default_connection": "default",
         },
@@ -51,3 +50,7 @@ HTTP_ADDR = 'http://localhost'
 HTTP_PORT = 9100
 HTTP_SITE = f'{HTTP_ADDR}:{HTTP_PORT}'
 DEFAULT_AVATAR = f'/static/avatar/default.jpg'
+
+
+# music
+NETEASE_TOPLIST = 'https://music.163.com/discover/toplist'
