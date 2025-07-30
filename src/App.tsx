@@ -1,60 +1,106 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
-import { Layout, Input, List, Typography, Spin, Empty, Tag, Space } from 'antd';
-import 'antd/dist/reset.css'; // 引入 Antd 的样式重置文件
+import React, { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { Layout, Input, List, Typography, Spin, Empty, Button, message, Space } from 'antd';
+import 'antd/dist/reset.css';
 
 const { Header, Content } = Layout;
 const { Search } = Input;
 const { Title, Text } = Typography;
 
-// 1. 定义与 Rust 后端匹配的 TypeScript 接口
-// 这有助于代码提示和类型安全
 interface Song {
-  id: number;
+  id: string;
   title: string;
   artist: string;
-  album: string;
-  duration: number; // 时长（秒）
+}
+
+interface SearchResult {
+  songs: Song[];
+  has_more: boolean;
 }
 
 function App() {
-  // 2. 定义组件的状态
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false); // 用于判断是否执行过搜索
+  const [searched, setSearched] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentKeyword, setCurrentKeyword] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  
+  // 1. 新增状态，用于跟踪哪个歌曲正在下载
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // 格式化时长显示
-  const formatDuration = (s: number) => {
-    const minutes = Math.floor(s / 60);
-    const seconds = s % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-
-  // 3. 定义处理搜索的函数
   const handleSearch = async (value: string) => {
-    if (!value) {
-      // 如果搜索词为空，则清空列表
-      setSongs([]);
-      setSearched(false);
-      return;
-    }
-
+    const keyword = value.trim();
+    if (!keyword) return;
     setLoading(true);
     setSearched(true);
+    setCurrentKeyword(keyword);
     try {
-      // 调用我们之前在 Rust 中定义的 `search_music` 命令
-      const results = await invoke<Song[]>('search_music', { keyword: value });
-      setSongs(results);
+      const result = await invoke<SearchResult>('search_music', { keyword, page: 1 });
+      setSongs(result.songs);
+      setHasMore(result.has_more);
+      setCurrentPage(1);
     } catch (error) {
       console.error("搜索失败:", error);
-      // 在这里可以添加错误提示，例如使用 antd 的 message.error()
+      message.error(`搜索失败: ${error}`);
     } finally {
       setLoading(false);
     }
   };
+  
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = currentPage + 1;
+    try {
+      const result = await invoke<SearchResult>('search_music', { keyword: currentKeyword, page: nextPage });
+      setSongs(prevSongs => [...prevSongs, ...result.songs]);
+      setHasMore(result.has_more);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error("加载更多失败:", error);
+      message.error(`加载更多失败: ${error}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
-  // 4. 渲染UI界面
+  // 2. 新增处理下载的函数
+  const handleDownload = async (song: Song) => {
+    setDownloadingId(song.id); // 设置当前下载中的歌曲ID
+    message.loading({ content: `正在解析《${song.title}》的下载链接...`, key: 'download' });
+
+    try {
+        await invoke('download_song', {
+            songId: song.id,
+            title: song.title,
+            artist: song.artist,
+            keyword: currentKeyword,
+        });
+        message.success({ content: `《${song.title}》已成功保存！`, key: 'download', duration: 3 });
+    } catch (error) {
+        // 如果错误是用户取消，则静默处理，否则提示错误
+        if (error !== "用户取消了下载") {
+             message.error({ content: `下载失败: ${error}`, key: 'download', duration: 3 });
+        } else {
+            message.destroy('download'); // 用户取消则直接销毁提示
+        }
+        console.error("下载失败:", error);
+    } finally {
+        setDownloadingId(null); // 下载结束（无论成功或失败），重置状态
+    }
+  };
+
+
+  const loadMoreButton = hasMore ? (
+    <div style={{ textAlign: 'center', marginTop: 16 }}>
+      <Button onClick={loadMore} loading={loadingMore}>
+        加载更多
+      </Button>
+    </div>
+  ) : null;
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ display: 'flex', alignItems: 'center', padding: '0 24px' }}>
@@ -72,32 +118,35 @@ function App() {
             loading={loading}
           />
           <div style={{ marginTop: 24 }}>
-            <Spin spinning={loading} tip="正在玩命搜索中...">
+            <Spin spinning={loading} tip="正在网络上玩命搜索中...">
               {songs.length > 0 ? (
                 <List
                   bordered
                   dataSource={songs}
+                  loadMore={loadMoreButton}
                   renderItem={(item) => (
                     <List.Item
-                      actions={[<a key="download">下载</a>, <a key="play">播放</a>]}
+                      // 3. 更新下载按钮的UI和事件
+                      actions={[
+                        <Button
+                            type="primary"
+                            key="download"
+                            loading={downloadingId === item.id} // 如果是当前下载项，则显示loading
+                            onClick={() => handleDownload(item)}
+                        >
+                            下载
+                        </Button>,
+                        <Button key="play" disabled>播放</Button>
+                      ]}
                     >
                       <List.Item.Meta
                         title={<Text strong>{item.title}</Text>}
-                        description={
-                          <Space size="middle">
-                            <Text type="secondary">歌手: {item.artist}</Text>
-                            <Text type="secondary">专辑: {item.album}</Text>
-                          </Space>
-                        }
+                        description={<Text type="secondary">歌手: {item.artist}</Text>}
                       />
-                      <div>
-                        <Tag>{formatDuration(item.duration)}</Tag>
-                      </div>
                     </List.Item>
                   )}
                 />
               ) : (
-                // 只有在执行过搜索且没有结果时，才显示 Empty 状态
                 searched && <Empty description="未能找到相关歌曲，换个关键词试试？" />
               )}
             </Spin>
