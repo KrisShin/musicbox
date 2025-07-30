@@ -79,6 +79,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+      
+      # 1. 新增：安装并配置 Android NDK
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25b # 使用一个稳定且常用的NDK版本
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Rust cache
@@ -86,24 +99,21 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install Android dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential clang libssl-dev
-
-      # 修正：使用 matrix.rust_target 来安装正确的交叉编译工具链
       - name: Install Rust target
         run: rustup target add ${{ matrix.rust_target }}
 
       - name: Install frontend dependencies
         run: yarn install
 
-      # 修正：使用 matrix.target 来执行正确的tauri打包命令
       - name: Build Tauri Android app
         uses: tauri-apps/tauri-action@v0
         env:
-          ANDROID_NDK_VERSION: r25b
+          # NDK_HOME现在由上一步自动设置，这里不再需要
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: npx tauri android build --aab --target ${{ matrix.target }} --
+          # 您在日志中使用了 --aab 参数，这是一个很好的实践，可以生成App Bundle
+          # 我已将其添加到命令中
+          tauriScript: npx tauri android build --target ${{ matrix.target }} --aab --
           tagName: app-v__VERSION__
           releaseName: 'App v__VERSION__'
           releaseDraft: true
