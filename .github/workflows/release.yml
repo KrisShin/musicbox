@@ -57,7 +57,7 @@ jobs:
   build-android:
     permissions:
       contents: write
-    # needs: build-desktop
+      # needs: build-desktop
     runs-on: ubuntu-latest
 
     strategy:
@@ -66,9 +66,11 @@ jobs:
         include:
           - target: aarch64
             rust_target: aarch64-linux-android
+            # 定义安卓产物的最终路径
             artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-aarch64-release-unsigned.apk"
           - target: x86_64
             rust_target: x86_64-linux-android
+            # 定义安卓产物的最终路径
             artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-x86_64-release-unsigned.apk"
 
     steps:
@@ -78,7 +80,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -101,21 +103,30 @@ jobs:
 
       - name: Install Rust target
         run: rustup target add ${{ matrix.rust_target }}
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
         
       - name: Install frontend dependencies
         run: yarn install
 
+      # 1. 核心修正：手动执行构建命令
       - name: Build Android App Manually
+        # 直接在shell中设置NDK_HOME并执行命令
         run: |
           export NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
           npx tauri android build --target ${{ matrix.target }}
         
+      # 2. 核心修正：让tauri-action只负责上传
       - name: Upload Android Release Asset
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # 不再有tauriScript或args
+          # 直接告诉action产物在哪里
           distPath: ${{ matrix.artifact_path }}
+          # action会自动根据架构重命名上传的文件
           tagName: "app-v__VERSION__"
           releaseName: "App v__VERSION__"
           releaseDraft: true
