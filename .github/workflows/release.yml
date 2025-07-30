@@ -103,6 +103,8 @@ jobs:
           ANDROID_NDK_VERSION: r25b
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: npx tauri android build --target ${{ matrix.target }}
+          tauriScript: npx tauri android build --target ${{ matrix.target }} --
           tagName: app-v__VERSION__
           releaseName: 'App v__VERSION__'
+          releaseDraft: true
+          prerelease: false
