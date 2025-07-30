@@ -9,8 +9,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  # --- Job 1: 构建桌面应用 (保持不变) ---
+  # --- Job 1: 构建桌面应用 (已修复) ---
   build-desktop:
+    # 1. 新增权限配置，允许创建Release
+    permissions:
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -25,6 +29,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # 2. 新增步骤：为Ubuntu安装必需的系统依赖
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -47,18 +58,17 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-  # --- Job 2: 新增的构建安卓应用的任务 ---
+  # --- Job 2: 构建安卓应用 (已修复) ---
   build-android:
-    # 确保这个job在桌面job之后运行，以利用已创建的release draft
+    # 3. 为安卓任务也添加相同的权限
+    permissions:
+      contents: write
     needs: build-desktop
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        # 定义需要构建的安卓目标架构
-        # aarch64-linux-android 对应 arm64-v8a
-        # x86_64-linux-android 对应 x86_64
         target: [aarch64-linux-android, x86_64-linux-android]
 
     steps:
@@ -77,25 +87,20 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # 安装安卓构建所需的依赖
       - name: Install Android dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential clang libssl-dev
 
-      # 安装对应的Rust目标
       - name: Install Rust target
         run: rustup target add ${{ matrix.target }}
 
       - name: Install frontend dependencies
         run: yarn install
 
-      # 使用tauri-action构建安卓应用
       - name: Build Tauri Android app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # 关键：指定tauri build的命令和目标
           tauriScript: yarn tauri android build --target ${{ matrix.target }}
-          # 关键：与桌面job使用相同的tag，将APK上传到同一个Release
           tagName: app-v__VERSION__
           releaseName: 'App v__VERSION__'
