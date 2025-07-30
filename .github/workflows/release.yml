@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [aarch64-linux-android, x86_64-linux-android]
+        target: [aarch64, x86_64]
 
     steps:
       - name: Checkout repository
