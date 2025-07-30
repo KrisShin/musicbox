@@ -1,0 +1,57 @@
+# .github/workflows/release.yml
+
+name: Build & Release
+
+# 控制工作流的触发时机
+on:
+  push:
+    branches:
+      - main  # 当推送到main分支时触发
+  workflow_dispatch: # 允许在GitHub Actions页面手动触发
+
+jobs:
+  build:
+    # 定义构建策略，使用矩阵（matrix）为不同平台并行构建
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    # 根据矩阵中的平台选择对应的虚拟机
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      # 1. 检出您的代码仓库
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置Node.js环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22 # 您可以根据项目需要更改Node.js版本
+
+      # 3. 设置Rust环境和缓存
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 4. 安装前端依赖 (根据您的 yarn.lock 文件，我们使用yarn)
+      - name: Install frontend dependencies
+        run: yarn install
+
+      # 5. 运行 Tauri Action 来构建应用
+      # 这是核心步骤，它会自动处理所有平台的构建和打包
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # 应用标签的格式，__VERSION__ 会被替换为 package.json 中的版本号
+          releaseName: 'App v__VERSION__' # Release的标题
+          releaseBody: 'See the assets to download this version.' # Release的正文内容
+          releaseDraft: true # 创建一个草稿Release，您可以检查无误后再手动发布
+          prerelease: false # 标记为非预发布版本
