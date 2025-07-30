@@ -9,7 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # --- 任务1: 构建桌面应用 (已恢复) ---
   build-desktop:
     permissions:
       contents: write
@@ -44,32 +43,21 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install
 
-      - name: Build Tauri app
-        # 这里我们不再使用tauri-action，而是手动构建并上传产物
-        run: npx tauri build
-      
-      # 使用稳定可靠的 action-gh-release 来上传
-      - name: Upload Desktop Release Asset
-        uses: softprops/action-gh-release@v2
-        # 只在main分支的推送上运行，避免在其他分支创建release
-        if: github.ref == 'refs/heads/main'
+      # 使用 tauri-action 来构建和上传桌面产物
+      - name: Build and Upload Desktop Release Asset
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # 从 tauri.conf.json 读取版本号来创建标签
-          tag_name: app-v${{ fromJson(steps.read-version.outputs.tauri-conf).version }}
-          # 标记为草稿，以便手动检查后发布
-          draft: true
-          files: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
+          tagName: app-v__VERSION__
+          releaseName: "App v__VERSION__"
+          releaseBody: "See the assets to download this version."
+          releaseDraft: true
+          prerelease: false
 
-  # --- 任务2: 构建安卓应用 ---
   build-android:
     permissions:
       contents: write
-    # 依赖于桌面任务，确保Release已创建
     needs: build-desktop
     runs-on: ubuntu-latest
 
@@ -105,6 +93,12 @@ jobs:
         with:
           ndk-version: r25b
 
+      # 关键修正：为安卓任务也安装Linux桌面依赖
+      - name: Install Linux Desktop Dependencies for Tauri Action
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Rust cache
@@ -123,11 +117,13 @@ jobs:
           export NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
           npx tauri android build --target ${{ matrix.target }}
         
-      # 使用 action-gh-release 来上传安卓产物
       - name: Upload Android Release Asset
-        uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # 使用与桌面任务相同的标签
-          tag_name: app-v${{ fromJson(steps.read-version.outputs.tauri-conf).version }}
-          files: ${{ matrix.artifact_path }}
+          distPath: ${{ matrix.artifact_path }}
+          tagName: "app-v__VERSION__"
+          releaseName: "App v__VERSION__"
+          releaseDraft: true
+          prerelease: false
