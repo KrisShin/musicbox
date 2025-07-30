@@ -9,12 +9,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  # --- Job 1: 构建桌面应用 (已修复) ---
   build-desktop:
-    # 1. 新增权限配置，允许创建Release
     permissions:
       contents: write
-
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +27,6 @@ jobs:
         with:
           node-version: 22
 
-      # 2. 新增步骤：为Ubuntu安装必需的系统依赖
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -58,9 +54,7 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-  # --- Job 2: 构建安卓应用 (已修复) ---
   build-android:
-    # 3. 为安卓任务也添加相同的权限
     permissions:
       contents: write
     needs: build-desktop
@@ -69,7 +63,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [aarch64, x86_64]
+        # 修正：定义两个变量，一个给rustup用，一个给tauri用
+        include:
+          - target: aarch64
+            rust_target: aarch64-linux-android
+          - target: x86_64
+            rust_target: x86_64-linux-android
 
     steps:
       - name: Checkout repository
@@ -90,12 +89,14 @@ jobs:
       - name: Install Android dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential clang libssl-dev
 
+      # 修正：使用 matrix.rust_target 来安装正确的交叉编译工具链
       - name: Install Rust target
-        run: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.rust_target }}
 
       - name: Install frontend dependencies
         run: yarn install
 
+      # 修正：使用 matrix.target 来执行正确的tauri打包命令
       - name: Build Tauri Android app
         uses: tauri-apps/tauri-action@v0
         env:
