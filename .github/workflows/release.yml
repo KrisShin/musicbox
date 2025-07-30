@@ -100,8 +100,9 @@ jobs:
       - name: Build Tauri Android app
         uses: tauri-apps/tauri-action@v0
         env:
+          ANDROID_NDK_VERSION: r25b
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: yarn tauri android build --target ${{ matrix.target }}
+          tauriScript: npx tauri android build --target ${{ matrix.target }}
           tagName: app-v__VERSION__
           releaseName: 'App v__VERSION__'
