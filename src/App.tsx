@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Layout, Input, List, Typography, Spin, Empty, Button, message, Space } from 'antd';
+import { Layout, Input, List, Typography, Spin, Empty, Button, message } from 'antd';
 import 'antd/dist/reset.css';
 
 const { Header, Content } = Layout;
