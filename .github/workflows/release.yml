@@ -67,10 +67,12 @@ jobs:
         include:
           - target: aarch64
             rust_target: aarch64-linux-android
-            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-aarch64-release-unsigned.apk"
+            # 修正：签名后的APK文件名会变化
+            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-aarch64-release-signed.apk"
           - target: x86_64
             rust_target: x86_64-linux-android
-            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-x86_64-release-unsigned.apk"
+            # 修正：签名后的APK文件名会变化
+            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-x86_64-release-signed.apk"
 
     steps:
       - name: Checkout repository
@@ -92,7 +94,7 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r25b
-
+      
       # 关键修正：为安卓任务也安装Linux桌面依赖
       - name: Install Linux Desktop Dependencies for Tauri Action
         run: |
@@ -108,15 +110,26 @@ jobs:
 
       - name: Install Rust target
         run: rustup target add ${{ matrix.rust_target }}
-        
+
       - name: Install frontend dependencies
         run: yarn install
 
-      - name: Build Android App Manually
-        run: |
-          export NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
-          npx tauri android build --target ${{ matrix.target }}
+      # 1. 新增：解码并创建密钥库文件
+      - name: Decode and Create Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/my-release-key.jks
+
+      # 2. 核心修正：在构建步骤中注入签名环境变量
+      - name: Build Signed Android App Manually
+        env:
+          # 将Secrets作为环境变量传递给Tauri
+          TAURI_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/my-release-key.jks
+          TAURI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          TAURI_ANDROID_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TAURI_ANDROID_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          NDK_HOME: "${{ steps.setup-ndk.outputs.ndk-path }}"
+        run: npx tauri android build --target ${{ matrix.target }}
         
+      # 3. 核心修正：让tauri-action上传签名后的APK
       - name: Upload Android Release Asset
         uses: tauri-apps/tauri-action@v0
         env:
