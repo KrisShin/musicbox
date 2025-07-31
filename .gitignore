@@ -25,3 +25,5 @@ dist-ssr
 
 # Secrets key file
 .secrets
+src-tauri/gen/android/keystore.properties
+src-tauri/gen/android/app/top.kris.jks

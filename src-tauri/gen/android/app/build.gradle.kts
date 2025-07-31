@@ -52,14 +52,12 @@ android {
             }
         }
         getByName("release") {
-            /*
-            isMinifyEnabled = true
-            proguardFiles(
-                *fileTree(".") { include("**/*.pro") }
-                    .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
-                    .toList().toTypedArray()
-            )
-            */
+            // isMinifyEnabled = true
+            // proguardFiles(
+            //     *fileTree(".") { include("**/*.pro") }
+            //         .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
+            //         .toList().toTypedArray()
+            // )
             signingConfig = signingConfigs.getByName("release")
         }
     }
