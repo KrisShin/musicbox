@@ -66,50 +66,6 @@ jobs:
   build-android:
     permissions:
       contents: write
-    needs: build-desktop
-    runs-on: ubuntu-latest
-
-    env:
-      SIGNING_KEY_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64
-            rust_target: aarch64-linux-android
-            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk"
-          - target: x86_64
-            rust_target: x86_64-linux-android
-            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/x86_64/release/app-x86_64-release.apk"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install deps (ubuntu only)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: "aarch64-linux-android x86_64-linux-android armv7-linux-androideabi i686-linux-android"
-
-      - name: Install Android NDK
-        id: ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: ${{ secrets.NDK_VERSION }}
-
-      - name: Install frontendbuild-android:
-    permissions:
-      contents: write
     # needs: build-desktop
     runs-on: ubuntu-latest
 
