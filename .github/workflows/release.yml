@@ -66,9 +66,9 @@ jobs:
           - target: aarch64
             rust_target: aarch64-linux-android
             artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-aarch64-*.apk"
-          - target: x86_64
-            rust_target: x86_64-linux-android
-            artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-x86_64-*.apk"
+          # - target: x86_64
+          #   rust_target: x86_64-linux-android
+          #   artifact_path: "src-tauri/gen/android/app/build/outputs/apk/release/app-x86_64-*.apk"
 
     steps:
       - name: Checkout repository
@@ -105,6 +105,13 @@ jobs:
         run: rustup target add ${{ matrix.rust_target }}
       - name: Install frontend dependencies
         run: yarn install
+
+      - name: Debug Secrets Availability
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then echo "❗❗❗KEYSTORE_BASE64 is SET"; else echo "❎❎❎KEYSTORE_BASE64 is NOT SET"; fi
+          if [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then echo "❗❗❗KEYSTORE_PASSWORD is SET"; else echo "❎❎❎KEYSTORE_PASSWORD is NOT SET"; fi
+          if [ -n "${{ secrets.KEY_ALIAS }}" ]; then echo "❗❗❗KEY_ALIAS is SET"; else echo "❎❎❎KEY_ALIAS is NOT SET"; fi
+          if [ -n "${{ secrets.KEY_PASSWORD }}" ]; then echo "❗❗❗KEY_PASSWORD is SET"; else echo "❎❎❎KEY_PASSWORD is NOT SET"; fi
 
       # --- 签名构建流程 ---
       - name: Decode and Create Keystore
