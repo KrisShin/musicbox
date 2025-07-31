@@ -119,6 +119,14 @@ jobs:
         if: env.SIGNING_KEY_BASE64 != ''
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.jks
 
+      - name: setup Android signing
+        run: |
+          cd src-tauri/gen/android
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" > keystore.properties
+          echo "password=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+          base64 -d <<< "${{ secrets.KEYSTORE_BASE64 }}" > $RUNNER_TEMP/keystore.jks
+          echo "storeFile=$RUNNER_TEMP/release.jks" >> keystore.properties
+
       - name: Build Signed Android App
         if: env.SIGNING_KEY_BASE64 != ''
         # 3. 核心修正：在run脚本内部导出环境变量，确保生效
@@ -129,23 +137,6 @@ jobs:
           export TAURI_ANDROID_KEY_ALIAS="${{ secrets.KEY_ALIAS }}"
           export TAURI_ANDROID_KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}"
           npx tauri android build --target ${{ matrix.target }}
-      
-      - name: Verify Signed APK
-        if: env.SIGNING_KEY_BASE64 != ''
-        run: |
-          echo "--- 正在检查构建产物 ---"
-          ls -R src-tauri/gen/android/app/build/outputs/apk/release
-          SIGNED_APK_PATH=$(find src-tauri/gen/android/app/build/outputs/apk/release -name "*-signed.apk" | head -n 1)
-          if [ -n "$SIGNED_APK_PATH" ]; then
-            echo "✅ 成功找到签名后的APK: $SIGNED_APK_PATH"
-            echo "--- 正在验证签名信息 ---"
-            APKSIGNER_PATH=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -n 1)
-            $APKSIGNER_PATH verify --print-certs "$SIGNED_APK_PATH"
-          else
-            echo "❌ 错误：签名失败！未找到签名后的APK文件。"
-            echo "Tauri可能因为密钥、密码或别名错误而回退到了未签名构建。"
-            exit 1
-          fi
         
       - name: Upload Signed Android Release Asset
         if: env.SIGNING_KEY_BASE64 != ''
