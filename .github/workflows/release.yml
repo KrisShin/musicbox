@@ -50,6 +50,14 @@ jobs:
 
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
+      
+      # 这个步骤负责从 tauri.conf.json 读取版本号
+      - name: Get App Version
+        id: get_version
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          VERSION=$(grep '"version":' src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
+          echo "APP_VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -66,7 +74,7 @@ jobs:
   build-android:
     permissions:
       contents: write
-    # needs: build-desktop
+    needs: build-desktop
     runs-on: ubuntu-latest
 
     env:
@@ -99,7 +107,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r25b
+          ndk-version: r27b
       # 关键修正：为安卓任务也安装Linux桌面依赖
       - name: Install Linux Desktop Dependencies for Tauri Action
         run: |
@@ -139,9 +147,18 @@ jobs:
           export NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
           npx tauri android build --target ${{ matrix.target }} --split-per-abi
         
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      # - name: Upload Artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: APK File ${{ github.ref_name }}-${{matrix.target}}
+      #     path: |
+      #       ${{ github.workspace }}/${{ matrix.artifact_path }} 
+      # 这个步骤负责将安卓APK上传到上一个任务创建的Release中
+      - name: Upload Android Release Asset
+        uses: softprops/action-gh-release@v2
         with:
-          name: APK File ${{ github.ref_name }}
-          path: |
-            ${{ github.workspace }}/${{ matrix.artifact_path }} 
+          # 我们使用 needs.build-desktop.outputs.APP_VERSION 来确保
+          # tag_name 与上一个任务创建的Release完全一致
+          tag_name: app-v${{ needs.build-desktop.outputs.APP_VERSION }}
+          # files 就是您APK的路径
+          files: ${{ matrix.artifact_path }}
