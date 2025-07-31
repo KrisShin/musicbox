@@ -80,7 +80,7 @@ jobs:
   build-android:
     permissions:
       contents: write
-    needs: build-desktop
+    # needs: build-desktop
     runs-on: ubuntu-latest
 
     env:
