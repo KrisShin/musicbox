@@ -218,7 +218,8 @@ function App() {
         style={{
           display: "flex",
           alignItems: "center",
-          padding: `0 ${contentPadding}`,
+          padding: `env(safe-area-inset-top) ${contentPadding} 0 ${contentPadding}`,
+          height: `calc(50px + env(safe-area-inset-top))`,
         }}
       >
         <Title level={3} style={{ color: "white", margin: 0 }}>

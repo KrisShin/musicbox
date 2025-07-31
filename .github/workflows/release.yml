@@ -69,8 +69,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'App v__VERSION__'
+          tagName: musicbox-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'MusicBox v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
@@ -157,9 +157,9 @@ jobs:
       - name: Rename Android Asset
         id: rename_asset
         run: |
-          new_name="app-${{ needs.get-version.outputs.app_version }}-${{ matrix.target }}.apk"
-          mv ${{ matrix.artifact_path }} ${{ env.GITHUB_WORKSPACE }}/${new_name}
-          echo "new_path=${{ env.GITHUB_WORKSPACE }}/${new_name}" >> $GITHUB_OUTPUT
+          new_name="musicbox-${{ needs.get-version.outputs.app_version }}-${{ matrix.target }}.apk"
+          mv ${{ matrix.artifact_path }} ${new_name}
+          echo "new_path=${new_name}" >> $GITHUB_OUTPUT
           echo "New asset name: ${new_name}"
 
       # --- 修正步骤：上传安卓产物到 Release ---
@@ -167,6 +167,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # 核心修正：使用 get-version 的输出，确保上传到由 build-desktop 创建的同一个 Release
-          tag_name: app-v${{ needs.get-version.outputs.app_version }}
+          tag_name: musicbox-v${{ needs.get-version.outputs.app_version }}
           # 核心修正：使用上一步重命名后的文件路径
           files: ${{ steps.rename_asset.outputs.new_path }}
