@@ -9,20 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # --- 任务0: 获取版本号 (新任务) ---
-  get-version:
-    runs-on: ubuntu-latest
-    outputs:
-      app_version: ${{ steps.get_version.outputs.APP_VERSION }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Get App Version
-        id: get_version
-        run: |
-          VERSION=$(grep '"version":' src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
-          echo "APP_VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Successfully extracted version: ${VERSION}"
   # --- 任务1: 构建桌面应用 (已恢复) ---
   build-desktop:
     permissions:
@@ -100,6 +86,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Get App Version
+        id: get_version
+        run: |
+          VERSION=$(grep '"version":' src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
+          echo "APP_VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Successfully extracted version: ${VERSION}"
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -157,7 +151,7 @@ jobs:
       - name: Rename Android Asset
         id: rename_asset
         run: |
-          new_name="musicbox-${{ needs.get-version.outputs.app_version }}-${{ matrix.target }}.apk"
+          new_name="musicbox-${{ steps.get_version.outputs.APP_VERSION }}-${{ matrix.target }}.apk"
           mv ${{ matrix.artifact_path }} ${new_name}
           echo "new_path=${new_name}" >> $GITHUB_OUTPUT
           echo "New asset name: ${new_name}"
@@ -167,6 +161,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # 核心修正：使用 get-version 的输出，确保上传到由 build-desktop 创建的同一个 Release
-          tag_name: musicbox-v${{ needs.get-version.outputs.app_version }}
+          tag_name: musicbox-v${{ steps.get_version.outputs.APP_VERSION }}
+          release_name: 'MusicBox v${{ steps.get_version.outputs.APP_VERSION }}'
           # 核心修正：使用上一步重命名后的文件路径
           files: ${{ steps.rename_asset.outputs.new_path }}
