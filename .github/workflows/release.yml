@@ -5,13 +5,13 @@ name: Build & Release
 on:
   push:
     branches:
-      - main
+      - release
   workflow_dispatch:
 
 jobs:
   # --- 任务1: 构建桌面应用 (已恢复) ---
   build-desktop:
-    if: startsWith(github.event.head_commit.message, 'build:')
+    # if: startsWith(github.event.head_commit.message, 'build:')
     permissions:
       contents: write
     strategy:
@@ -65,7 +65,7 @@ jobs:
 
   # --- 任务2: 构建安卓应用 (已修复签名和所有问题) ---
   build-android:
-    if: startsWith(github.event.head_commit.message, 'build:')
+    # if: startsWith(github.event.head_commit.message, 'build:')
     permissions:
       contents: write
     # needs: build-desktop
