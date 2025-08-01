@@ -4,17 +4,23 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   Layout,
   Input,
+  Image,
   List,
-  Modal,
   Typography,
   Spin,
   Empty,
   Button,
-  message,
   Col,
   Row,
+  Flex,
+  message,
+  Modal
 } from "antd";
-import { PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons'; 
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  DownloadOutlined,
+} from "@ant-design/icons";
 import "antd/dist/reset.css";
 import useMediaQuery from "./useMediaQuery"; // 2. 引入自定义hook
 
@@ -45,19 +51,36 @@ function App() {
 
   const [playingId, setPlayingId] = useState<string | null>(null); // 记录正在播放/加载的歌曲ID
   const [currentSong, setCurrentSong] = useState<Song | null>(null); // 当前播放的歌曲信息
-  const [audioUrl, setAudioUrl] = useState<string>('');
+  const [audioUrl, setAudioUrl] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null); // 引用audio元素
 
-  useEffect(() => {
-    if (audioUrl && audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play().then(() => setIsPlaying(true));
-    }
-  }, [audioUrl]);
-
   // 3. 使用hook判断是否为移动端视图
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  useEffect(() => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.src = audioUrl;
+      audioRef.current.play().then(() => setIsPlaying(true));
+    }
+  }, [audioUrl]);
+  useEffect(() => {
+    if (isMobile) {
+      // 在移动端，将提示消息垂直下移，以避开顶部的摄像头和状态栏
+      message.config({
+        top: 80, // 这个距离可以根据你在真机上的测试效果进行微调
+        duration: 2, // 消息持续时间（秒）
+        maxCount: 3, // 最多同时显示3条消息
+      });
+    } else {
+      // 在桌面端，可以恢复为默认的顶部距离
+      message.config({
+        top: 24, // antd 的默认值
+        duration: 2,
+        maxCount: 3,
+      });
+    }
+  });
 
   const handleSearch = async (value: string) => {
     // ... (函数内容保持不变)
@@ -168,35 +191,35 @@ function App() {
 
   const handlePlay = async (song: Song) => {
     if (currentSong?.id === song.id) {
-        // 如果点击的是当前正在播放的歌曲，则切换播放/暂停
-        if (isPlaying) {
-            audioRef.current?.pause();
-            setIsPlaying(false);
-        } else {
-            audioRef.current?.play();
-            setIsPlaying(true);
-        }
-        return;
+      // 如果点击的是当前正在播放的歌曲，则切换播放/暂停
+      if (isPlaying) {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current?.play();
+        setIsPlaying(true);
+      }
+      return;
     }
 
     setPlayingId(song.id);
     setCurrentSong(song);
     setIsPlaying(false);
-    message.loading({ content: `正在加载《${song.title}》...`, key: 'play' });
+    message.loading({ content: `正在加载《${song.title}》...`, key: "play" });
     try {
-        const url = await invoke<string>('get_play_url', {
-            songId: song.id,
-            title: song.title,
-            artist: song.artist,
-            keyword: currentKeyword,
-        });
-        setAudioUrl(url);
-        message.success({ content: '加载成功', key: 'play' });
+      const url = await invoke<string>("get_play_url", {
+        songId: song.id,
+        title: song.title,
+        artist: song.artist,
+        keyword: currentKeyword,
+      });
+      setAudioUrl(url);
+      message.success({ content: "加载成功", key: "play" });
     } catch (error) {
-        message.error({ content: `播放失败: ${error}`, key: 'play' });
-        setCurrentSong(null);
+      message.error({ content: `播放失败: ${error}`, key: "play" });
+      setCurrentSong(null);
     } finally {
-        setPlayingId(null);
+      setPlayingId(null);
     }
   };
 
@@ -220,13 +243,21 @@ function App() {
           alignItems: "center",
           padding: `env(safe-area-inset-top) ${contentPadding} 0 ${contentPadding}`,
           height: `calc(50px + env(safe-area-inset-top))`,
+          background: `rgba(254, 189, 189, 0.5)`,
         }}
       >
-        <Title level={3} style={{ color: "white", margin: 0 }}>
-          🎶 音乐搜索下载器
+        <Title
+          level={3}
+          style={{ color: "white", margin: 0, justifyItems: "center" }}
+        >
+          <Flex align="center" gap={"small"} style={{ color: "#555" }}>
+            <Image src="/icon.png" width={25} preview={false} /> MusicBox
+          </Flex>
         </Title>
       </Header>
-      <Content style={{ padding: contentPadding }}>
+      <Content
+        style={{ padding: contentPadding, backgroundImage: "/icon.png" }}
+      >
         <div
           style={{ background: "#fff", padding: cardPadding, borderRadius: 8 }}
         >
@@ -263,25 +294,31 @@ function App() {
                           />
                         </Col>
                         <Col
-                          flex={isMobile ? "100px" : "180px"}
+                          flex={isMobile ? "60px" : "180px"}
                           style={{ textAlign: "right" }}
                         >
-                          <Button
-                            type="primary"
-                            key="download"
-                            loading={downloadingId === item.id}
-                            onClick={() => handleDownload(item)}
-                            style={{ marginRight: 8 }}
-                          >
-                            下载
-                          </Button>
-                          <Button
-                            key="play"
-                            icon={currentSong?.id === item.id && isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                            loading={playingId === item.id}
-                            onClick={() => handlePlay(item)}
-                            disabled
-                          />
+                          <Flex gap={"small"}>
+                            <Button
+                              key="play"
+                              icon={
+                                currentSong?.id === item.id && isPlaying ? (
+                                  <PauseCircleOutlined />
+                                ) : (
+                                  <PlayCircleOutlined />
+                                )
+                              }
+                              loading={playingId === item.id}
+                              // onClick={() => handlePlay(item)}
+                              type="dashed"
+                            />
+                            <Button
+                              type="primary"
+                              key="download"
+                              loading={downloadingId === item.id}
+                              onClick={() => handleDownload(item)}
+                              icon={<DownloadOutlined />}
+                            />
+                          </Flex>
                         </Col>
                       </Row>
                     </List.Item>

@@ -164,6 +164,5 @@ jobs:
         with:
           # 核心修正：使用 get-version 的输出，确保上传到由 build-desktop 创建的同一个 Release
           tag_name: musicbox-v${{ steps.get_version.outputs.APP_VERSION }}
-          release_name: 'MusicBox v${{ steps.get_version.outputs.APP_VERSION }}'
           # 核心修正：使用上一步重命名后的文件路径
           files: ${{ steps.rename_asset.outputs.new_path }}
