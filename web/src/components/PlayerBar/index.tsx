@@ -68,66 +68,68 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
       }}
     >
       <Row align="middle" justify="space-between">
-        {/* 歌曲信息 */}
-        <Col span={6}>
-          <Text strong ellipsis style={{ fontSize: "16px" }}>
-            {currentSong.title}
-          </Text>
-          <br />
-          <Text type="secondary" ellipsis>
-            {currentSong.artist}
-          </Text>
-        </Col>
-        {/* 播放控制 */}
-        <Col span={18} style={{ textAlign: "center" }}>
-          <Row>
-            <Button
-              type="text"
-              shape="circle"
-              icon={<StepBackwardOutlined />}
-              onClick={onPrev}
-            />
-            <Button
-              type="primary"
-              shape="circle"
-              icon={
-                isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />
-              }
-              onClick={onPlayPause}
-              style={{ margin: "0 3px", transform: "scale(1.05)" }}
-            />
-            <Button
-              type="text"
-              shape="circle"
-              icon={<StepForwardOutlined />}
-              onClick={onNext}
-            />
-            <Flex align="center" gap="small" style={{ flex: 1 }}>
-              <Text style={{ fontSize: "12px", color: "#888" }}>
-                {formatTime(currentTime)}
-              </Text>
-              <Slider
-                value={(currentTime / duration) * 100}
-                onChange={onSeek}
-                tooltip={{ formatter }}
-                step={0.1}
-                style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
-              />
-              <Text style={{ fontSize: "12px", color: "#888" }}>
-                {formatTime(duration)}
-              </Text>
+        <Col span={24}>
+          <Row justify="center" style={{ marginBottom: "3px" }}>
+            <Text
+              strong
+              ellipsis
+              style={{ maxWidth: "30%", alignContent: "center" }}
+            >
+              {currentSong.title} - {currentSong.artist}
+              1231231212312312312312
+            </Text>
+            <Flex
+              flex={1}
+              style={{ minWidth: "70%", borderBottom: "1px solid #ffb5b5ff" }}
+            >
+              <LyricScroller lyricText={lyricText} currentTime={currentTime} />
             </Flex>
-            <Button
-              type="text"
-              icon={<DownloadOutlined style={{ color: "#e87997" }} />}
-              //   onClick={() => handleDownload(item)}
-            />
           </Row>
-          <Row
-            justify="center"
-            style={{ marginTop: "4px", border: "1px 0 1px 0 solid #ffb5b5ff" }}
-          >
-            <LyricScroller lyricText={lyricText} currentTime={currentTime} />
+          <Row>
+            <Flex flex={1} gap={"small"}>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<StepBackwardOutlined />}
+                onClick={onPrev}
+                color="pink"
+                variant="outlined"
+              />
+              <Button
+                type="primary"
+                shape="circle"
+                icon={
+                  isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />
+                }
+                onClick={onPlayPause}
+                style={{ margin: "0 5px", transform: "scale(1.05)" }}
+              />
+              <Button
+                type="text"
+                shape="circle"
+                icon={<StepForwardOutlined />}
+                onClick={onNext}
+                color="pink"
+                variant="outlined"
+              />
+              <Flex align="center" gap="small" flex={1}>
+                <Slider
+                  value={(currentTime / duration) * 100}
+                  onChange={onSeek}
+                  tooltip={{ formatter }}
+                  step={0.1}
+                  style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
+                />
+                <Text style={{ fontSize: "12px", color: "#888" }}>
+                  {formatTime(duration)}
+                </Text>
+              </Flex>
+              <Button
+                type="text"
+                icon={<DownloadOutlined style={{ color: "#e87997" }} />}
+                //   onClick={() => handleDownload(item)}
+              />
+            </Flex>
           </Row>
         </Col>
       </Row>

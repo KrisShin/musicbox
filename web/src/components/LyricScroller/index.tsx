@@ -82,6 +82,7 @@ const LyricScroller: React.FC<LyricScrollerProps> = ({
         overflowY: "hidden", // 隐藏滚动条
         textAlign: "center",
         color: "#666",
+        width: "auto",
       }}
     >
       {parsedLyrics.map((line, index) => (
