@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field, computed_field
 
 BASE_URL = 'https://www.gequhai.net'
@@ -14,6 +14,11 @@ class MusicListRowSchema(BaseModel):
     artist: str
     url: str
     song_id: str | int
+
+
+class SearchMusicResponseSchema(BaseModel):
+    data: List[MusicListRowSchema]
+    has_more: bool
 
 
 class DownloadMusicSchema(BaseModel):

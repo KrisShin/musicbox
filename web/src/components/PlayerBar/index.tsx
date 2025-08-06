@@ -6,6 +6,7 @@ import {
   StepBackwardOutlined,
   StepForwardOutlined,
   DownloadOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import type { Song } from "../../types";
 import LyricScroller from "../LyricScroller";
@@ -18,12 +19,11 @@ interface PlayerBarProps {
   currentSong: Song | null;
   isPlaying: boolean;
   currentTime: number;
-  duration: number;
-  lyricText: string; // 新增：传递歌词文本
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
   onSeek: (value: number) => void;
+  onClose: () => void;
 }
 const formatTime = (timeInSeconds: number): string => {
   const S = Math.floor(timeInSeconds);
@@ -36,12 +36,11 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
   currentSong,
   isPlaying,
   currentTime,
-  duration,
-  lyricText,
   onPlayPause,
   onPrev,
   onNext,
   onSeek,
+  onClose,
 }) => {
   // 如果没有当前歌曲，不显示播放栏
   if (!currentSong) {
@@ -50,9 +49,11 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
 
   const formatter = (value?: number): string => {
     if (typeof value !== "number") return "";
-    const time = (value / 100) * duration;
+    const time = (value / 100) * (typeof (currentSong.duration) === 'number'? currentSong.duration: 0);
     return formatTime(time);
   };
+
+  const handleDownload = async () => {};
 
   return (
     <Footer
@@ -76,14 +77,26 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
               style={{ maxWidth: "30%", alignContent: "center" }}
             >
               {currentSong.title} - {currentSong.artist}
-              1231231212312312312312
             </Text>
             <Flex
               flex={1}
               style={{ minWidth: "70%", borderBottom: "1px solid #ffb5b5ff" }}
             >
-              <LyricScroller lyricText={lyricText} currentTime={currentTime} />
+              <LyricScroller
+                lyricText={currentSong.lyric || ""}
+                currentTime={currentTime}
+              />
             </Flex>
+            <Button
+              style={{
+                position: "absolute",
+                right: "-13px",
+                top: "-12px",
+              }}
+              type="text"
+              icon={<CloseOutlined style={{ color: "#f00" }} />}
+              onClick={onClose}
+            />
           </Row>
           <Row>
             <Flex flex={1} gap={"small"}>
@@ -114,21 +127,35 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
               />
               <Flex align="center" gap="small" flex={1}>
                 <Slider
-                  value={(currentTime / duration) * 100}
+                  value={
+                    (currentTime /
+                      (typeof currentSong.duration === "number"
+                        ? currentSong.duration
+                        : 1)) *
+                    100
+                  }
                   onChange={onSeek}
                   tooltip={{ formatter }}
                   step={0.1}
                   style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
                 />
                 <Text style={{ fontSize: "12px", color: "#888" }}>
-                  {formatTime(duration)}
+                  {formatTime(
+                    typeof currentSong.duration === "number"
+                      ? currentSong.duration
+                      : 0
+                  )}
                 </Text>
               </Flex>
-              <Button
-                type="text"
-                icon={<DownloadOutlined style={{ color: "#e87997" }} />}
-                //   onClick={() => handleDownload(item)}
-              />
+              <a
+                color="pink"
+                style={{ padding: "5px" }}
+                onClick={handleDownload}
+                href={currentSong.download_mp3}
+                target="_blank"
+              >
+                <DownloadOutlined style={{ color: "#e87997" }} />
+              </a>
             </Flex>
           </Row>
         </Col>
