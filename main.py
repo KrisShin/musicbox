@@ -60,49 +60,41 @@ def post_search_music(params: SearchMusicSchema):
         return SearchMusicResponseSchema(data=[], has_more=False)
 
     selector = Selector(text=resp.text)
-    song_rows = selector.css('div.row')
+
+    song_rows = selector.css('div.card-text > div.row')
+
     music_list = []
-
     for row in song_rows:
-        title = row.css('span.music-title > span::text').get()
-        artist = row.css('small.text-jade::text').get()
-        url = row.css('a.music-link::attr(href)').get()
+        # 步骤1：先定位到包含所有信息的 a.music-link 元素
+        link_element = row.css('a.music-link')
 
-        if not (title and artist and url):
-            # 如果核心数据不完整，跳过此条目
+        # 如果在这个 row 中没有找到 a.music-link，则直接跳过
+        if not link_element:
+            continue
+
+        # 步骤2：从 a.music-link 元素中提取所有需要的信息
+        title = link_element.css('span.music-title span::text').get()
+        artist = link_element.css('small.text-jade::text').get()
+        detail_url = link_element.css('::attr(href)').get()
+
+        if not (title and artist and detail_url and detail_url.startswith('/music/')):
             continue
 
         try:
-            parsed_url = urlparse(url)
-            query_params = parse_qs(parsed_url.query)
-            song_id = query_params.get('song_id', [None])[0]
-
-            if song_id:
-                music_list.append(
-                    MusicListRowSchema(
-                        song_id=song_id,
-                        title=title.strip(),
-                        artist=artist.strip(),
-                        url=url,  # 传入完整的相对URL
-                    )
+            song_id = detail_url.split('/music/')[-1]
+            music_list.append(
+                MusicListRowSchema(
+                    song_id=song_id,
+                    title=title.strip(),
+                    artist=artist.strip(),
+                    url=detail_url,  # 保留详情页URL，前端可能会用到
                 )
-        except (IndexError, TypeError):
-            print(f"URL解析失败，跳过: {url}")
+            )
+        except IndexError:
+            print(f"无法从URL中解析ID，跳过: {detail_url}")
             continue
 
-    # --- 判断是否还有下一页 ---
-    # 选取分页组件中的最后一个列表项
-    last_page_item = selector.css('ul.pagination li.page-item:last-child')
-    has_more = True
-    if last_page_item:
-        # 如果最后一个分页项存在，并且它包含 'disabled' 类，则说明没有下一页了
-        if 'disabled' in last_page_item.attrib.get('class', ''):
-            has_more = False
-    else:
-        # 如果页面上根本没有分页组件（例如只有一页内容），也认为没有下一页
-        has_more = False
-
-    return SearchMusicResponseSchema(data=music_list, has_more=has_more)
+    return SearchMusicResponseSchema(data=music_list, has_more=False)
 
 
 @app.post('/detail/')
@@ -117,10 +109,10 @@ def post_detail_music(params: DownloadMusicSchema):
         except httpx.HTTPStatusError as e:
             # 返回一个空的、没有更多页的响应，并可以在日志中记录错误
             print(f"请求失败: {e}")
-            raise Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"code: {resp.status_code}, text: {resp.text}")
+            return Response(status_code=status.HTTP_400_BAD_REQUEST)
         except httpx.ReadTimeout:
             if try_times >= TRY_LIMIT:
-                raise Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"内容获取超时")
+                return Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"内容获取超时")
 
     selector = Selector(text=resp.text)
 

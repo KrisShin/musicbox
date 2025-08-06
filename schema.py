@@ -1,7 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field, computed_field
 
-BASE_URL = 'https://www.gequhai.net'
+BASE_URL = 'https://www.gequbao.com'
 
 
 class SearchMusicSchema(BaseModel):
