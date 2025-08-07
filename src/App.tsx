@@ -9,33 +9,35 @@ import {
   Button,
   Image,
   Flex,
-  App as AntdApp,
+  message,
 } from "antd";
 import { DownloadOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import PlayerBar from "./components/PlayerBar";
 import type { Song, SearchResult } from "./types";
-import { searchMusic } from './crawler'; 
+import { searchMusic, musicDetail } from "./crawler";
+import { downloadDir } from "@tauri-apps/api/path";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const { Header, Content } = Layout;
 const { Search } = Input;
 const { Title, Text } = Typography;
 
 function App() {
-  const { message } = AntdApp.useApp();
-
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [currentKeyword, setCurrentKeyword] = useState("");
   const [searched, setSearched] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
-  const [page, setPage] = useState<number>(0);
+  const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState(false);
+  const [playingMusicIndex, setPlayingMusicIndex] = useState(-1);
 
   // 播放器状态
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // 搜索处理
@@ -45,7 +47,7 @@ function App() {
 
     setLoading(true);
     setSearched(true);
-    let currentPage = 0;
+    let currentPage = 1;
     if (keyword != currentKeyword) {
       setCurrentKeyword(keyword); // 保存当前关键词
     } else {
@@ -68,17 +70,27 @@ function App() {
   };
 
   // 下载处理
-  const handleDetail = async (song: Song) => {
-    // message.info(`准备下载: ${song.title}`);
+  const handleDetail = async (song: Song, index: number) => {
+    setPlayingMusicIndex(index);
+    message.info(`获取信息中: ${song.title}`);
     if (!song.url) return;
-    // const result = await getMusicDetailsApi({ url: song.url });
-    // setCurrentSong({ ...song, ...result });
-    handlePlay(song)
+    const result = await musicDetail(song);
+    setCurrentSong(result);
+    handlePlay(result);
+
+    if (audioRef.current && result.play_url) {
+      audioRef.current.src = result.play_url;
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((e) => console.error("播放失败:", e));
+    }
+    message.destroy("play");
   };
 
   // --- 播放逻辑 ---
   const handlePlay = (song: Song) => {
-    if (currentSong?.songId === song.songId) {
+    if (currentSong?.song_id === song.song_id) {
       // 如果是同一首歌，切换播放/暂停
       handlePlayPause();
     } else {
@@ -100,9 +112,19 @@ function App() {
     }
     setIsPlaying(!isPlaying);
   };
+  const _playIndexMuisc = (index: number) => {
+    if (index < 0 || index >= songs.length) {
+      setPlayingMusicIndex(-1);
+      handleClose();
+      return;
+    }
+    const song = songs[index];
+    setPlayingMusicIndex(index);
+    handleDetail(song, index);
+  };
 
-  const handleNext = () => console.log("Next song");
-  const handlePrev = () => console.log("Previous song");
+  const handleNext = () => _playIndexMuisc(playingMusicIndex + 1);
+  const handlePrev = () => _playIndexMuisc(playingMusicIndex - 1);
   const handleSeek = (value: number) => {
     const duration = audioRef.current?.duration || 0;
     if (audioRef.current)
@@ -117,6 +139,79 @@ function App() {
     setCurrentSong(null);
   };
 
+  const handleSave = async () => {
+    const song = currentSong;
+    const messageKey = `download-${song?.song_id}`;
+    message.loading({
+      content: `《${song?.title}》: 解析链接...`,
+      key: messageKey,
+      duration: 0,
+    });
+
+    try {
+      if (!song?.play_url) throw new Error("未能获取下载链接");
+
+      message.loading({
+        content: `《${song.title}》: 选择保存位置...`,
+        key: messageKey,
+        duration: 0,
+      });
+
+      const suggestedFilename = `${song.title} - ${song.artist}.mp3`;
+      const defaultPath = await downloadDir();
+      const filePath = await save({
+        title: "选择保存位置",
+        defaultPath: `${defaultPath}/${suggestedFilename}`,
+        filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
+      });
+
+      if (!filePath) {
+        message.destroy(messageKey);
+        // setDownloadingId(null);
+        return;
+      }
+
+      message.loading({
+        content: `《${song.title}》: 下载中...`,
+        key: messageKey,
+        duration: 0,
+      });
+
+      // --- 最终的、结合了所有知识的请求 ---
+      const response = await tauriFetch(song.play_url, {
+        method: "GET",
+        headers: {
+          // 伪造一个合法的来源页面，这是通过服务器校验的关键
+          Referer: `https://www.gequhai.net${song.url}`,
+        },
+      });
+      // ---
+
+      if (!response.ok) {
+        throw new Error(`下载请求失败，状态: ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await writeFile(filePath, uint8Array);
+
+      message.success({
+        content: `《${song.title}》已成功保存！`,
+        key: messageKey,
+        duration: 3,
+      });
+      // await open(filePath.substring(0, filePath.lastIndexOf("/")));
+    } catch (error: any) {
+      message.error({
+        content: `下载失败: ${error.message || "未知错误"}`,
+        key: messageKey,
+        duration: 5,
+      });
+    } finally {
+      // setDownloadingId(null);
+    }
+  };
+
   // 使用 useEffect 监听 audio 元素的事件来更新进度
   useEffect(() => {
     const audio = audioRef.current;
@@ -126,17 +221,12 @@ function App() {
       setCurrentTime(audio.currentTime);
     };
 
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
-    };
     console.log(audio);
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, []);
 
@@ -210,20 +300,18 @@ function App() {
                     padding: "14px",
                   }}
                   dataSource={songs}
-                  renderItem={(item) => (
+                  renderItem={(item, index) => (
                     <List.Item
                       actions={[
                         <Button
                           type="primary"
                           icon={<PlayCircleOutlined />}
-                          onClick={() => handleDetail(item)}
+                          onClick={() => handleDetail(item, index)}
                         />,
                       ]}
                     >
                       <List.Item.Meta
-                        title={
-                          <a onClick={() => handlePlay(item)}>{item.title}</a>
-                        }
+                        title={<Text>{item.title}</Text>}
                         description={`${item.artist}`}
                       />
                     </List.Item>
@@ -255,6 +343,7 @@ function App() {
         isPlaying={isPlaying}
         currentTime={currentTime}
         onPlayPause={handlePlayPause}
+        onSave={handleSave}
         onNext={handleNext}
         onPrev={handlePrev}
         onSeek={handleSeek}

@@ -7,11 +7,21 @@
   ],
   "permissions": [
     "core:default",
-    "http:allow-fetch",
     {
       "identifier": "http:default",
       "allow": [
-        "https://www.gequhai.net/**"
+        "https://www.gequhai.net/**",
+        "https://*.kuwo.cn/**"
+      ]
+    },
+    "dialog:default",
+    "fs:allow-write-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$DOWNLOAD/**"
+        }
       ]
     }
   ]

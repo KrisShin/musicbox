@@ -11,10 +11,10 @@ export interface SongDetail {
 }
 
 export interface Song extends SongDetail {
-  songId: string;
+  song_id: string;
   title: string;
   artist: string;
-  url?: string;
+  url: string;
   // (可选) 播放链接
 }
 

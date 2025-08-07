@@ -3,10 +3,10 @@ import { Layout, Row, Col, Typography, Button, Slider, Flex } from "antd";
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
-  StepBackwardOutlined,
-  StepForwardOutlined,
   DownloadOutlined,
   CloseOutlined,
+  StepForwardOutlined,
+  StepBackwardOutlined,
 } from "@ant-design/icons";
 import type { Song } from "../../types";
 import LyricScroller from "../LyricScroller";
@@ -20,6 +20,7 @@ interface PlayerBarProps {
   isPlaying: boolean;
   currentTime: number;
   onPlayPause: () => void;
+  onSave: () => void;
   onPrev: () => void;
   onNext: () => void;
   onSeek: (value: number) => void;
@@ -37,6 +38,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
   isPlaying,
   currentTime,
   onPlayPause,
+  onSave,
   onPrev,
   onNext,
   onSeek,
@@ -49,11 +51,11 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
 
   const formatter = (value?: number): string => {
     if (typeof value !== "number") return "";
-    const time = (value / 100) * (typeof (currentSong.duration) === 'number'? currentSong.duration: 0);
+    const time =
+      (value / 100) *
+      (typeof currentSong.duration === "number" ? currentSong.duration : 0);
     return formatTime(time);
   };
-
-  const handleDownload = async () => {};
 
   return (
     <Footer
@@ -150,9 +152,9 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
               <a
                 color="pink"
                 style={{ padding: "5px" }}
-                onClick={handleDownload}
-                href={currentSong.download_mp3}
-                target="_blank"
+                onClick={onSave}
+                // href={currentSong.play_url}
+                // target="_blank"
               >
                 <DownloadOutlined style={{ color: "#e87997" }} />
               </a>
