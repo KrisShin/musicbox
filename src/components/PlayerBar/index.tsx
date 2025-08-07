@@ -65,7 +65,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
         width: "100%",
         backgroundColor: "#ffede5ff",
         borderRadius: "15px 15px 0 0",
-        padding: "8px 14px",
+        padding: "8px 14px 28px 14px",
         borderTop: "5px solid #ffb5b5ff",
         zIndex: 1000,
       }}
@@ -92,7 +92,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
             <Button
               style={{
                 position: "absolute",
-                right: "-13px",
+                right: "-10px",
                 top: "-12px",
               }}
               type="text"
@@ -139,6 +139,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                   onChange={onSeek}
                   tooltip={{ formatter }}
                   step={0.1}
+                  // autoFocus={true}
                   style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
                 />
                 <Text style={{ fontSize: "12px", color: "#888" }}>

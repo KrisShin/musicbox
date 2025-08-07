@@ -19,6 +19,7 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import "./App.css";
 
 const { Header, Content } = Layout;
 const { Search } = Input;
@@ -80,10 +81,7 @@ function App() {
 
     if (audioRef.current && result.play_url) {
       audioRef.current.src = result.play_url;
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((e) => console.error("播放失败:", e));
+      audioRef.current.play();
     }
     message.destroy("play");
   };
@@ -96,10 +94,15 @@ function App() {
     } else {
       // 播放新歌曲
       setCurrentSong(song);
-      setIsPlaying(true);
+
       // 注意：在真实应用中，url 需要从后端获取
-      // audioRef.current.src = song.url;
-      // audioRef.current.play();
+      if (audioRef.current && song.play_url) {
+        audioRef.current.src = song.url;
+        audioRef.current
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch((e) => console.error("播放失败:", e));
+      }
       message.success(`开始播放: ${song.title}`);
     }
   };
@@ -213,22 +216,43 @@ function App() {
   };
 
   // 使用 useEffect 监听 audio 元素的事件来更新进度
+  // --- 3. 使用 useEffect 来处理所有 audio 元素的副作用 ---
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // 当 src 改变，音频开始加载，元数据加载完毕后会触发此事件
+    const handleMetadataLoaded = () => {
+      // 此时 audio.duration 就有值了
+      setCurrentSong({ ...currentSong, duration: audio.duration });
+      // 元数据加载完后，再开始播放
+      audio.play();
+      setIsPlaying(true);
+    };
+
+    // 监听播放进度
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
     };
 
-    console.log(audio);
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
+    // 监听播放结束
+    const handleEnded = () => {
+      setIsPlaying(false);
+      // (可选) 在这里可以实现自动播放下一首的逻辑
     };
-  }, []);
+
+    // 添加事件监听
+    audio.addEventListener("loadedmetadata", handleMetadataLoaded);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+
+    // 组件卸载或 currentSong 改变时，清理上一次的监听器
+    return () => {
+      audio.removeEventListener("loadedmetadata", handleMetadataLoaded);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [currentSong]); // 依赖 currentSong，当歌曲切换时，重新设置监听
 
   return (
     <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
@@ -252,7 +276,7 @@ function App() {
         >
           <Flex align="end" gap={1}>
             <Image
-              src="/src/assets/icon.png"
+              src="./src/assets/icon.png"
               preview={false}
               width={25}
               height={25}
@@ -281,14 +305,14 @@ function App() {
         </div>
       </div>
 
-      <Content className="content-padding-bottom" style={{ padding: "4px" }}>
+      <Content className="content-padding-bottom" style={{ padding: "6px" }}>
         <div
           style={{
             background: "#fff",
             borderRadius: 8,
             maxWidth: "800px",
             margin: "0 auto",
-            paddingBottom: currentSong ? "90px" : "24px",
+            paddingBottom: currentSong ? "110px" : "24px",
             transition: "padding-bottom 0.3s ease-in-out", // 增加一个平滑的过渡效果
           }}
         >

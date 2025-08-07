@@ -5,7 +5,7 @@ export interface SongDetail {
   download_mp3?: string;
   download_kuake?: string;
   cover_url?: string;
-  duration?: string;
+  duration?: number;
   download_mp3_id?: number;
   play_url?: string;
 }
