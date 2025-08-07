@@ -2,9 +2,27 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
-    "opener:default"
+    {
+      "identifier": "http:default",
+      "allow": [
+        "https://www.gequhai.net/**",
+        "https://*.kuwo.cn/**"
+      ]
+    },
+    "dialog:default",
+    "fs:allow-write-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$DOWNLOAD/**"
+        }
+      ]
+    }
   ]
 }

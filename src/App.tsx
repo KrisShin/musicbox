@@ -1,235 +1,276 @@
-import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-// 1. 引入 Col 和 Row 用于响应式布局
+import { useState, useRef, useEffect } from "react";
 import {
   Layout,
   Input,
   List,
-  Modal,
   Typography,
   Spin,
   Empty,
   Button,
+  Image,
+  Flex,
   message,
-  Col,
-  Row,
 } from "antd";
-import { PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons'; 
-import "antd/dist/reset.css";
-import useMediaQuery from "./useMediaQuery"; // 2. 引入自定义hook
+import { DownloadOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import PlayerBar from "./components/PlayerBar";
+import type { Song, SearchResult } from "./types";
+import { searchMusic, musicDetail } from "./crawler";
+import { downloadDir } from "@tauri-apps/api/path";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const { Header, Content } = Layout;
 const { Search } = Input;
 const { Title, Text } = Typography;
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-}
-
-interface SearchResult {
-  songs: Song[];
-  has_more: boolean;
-}
-
 function App() {
-  const [songs, setSongs] = useState<Song[]>([]);
+  // 状态管理
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [currentKeyword, setCurrentKeyword] = useState("");
+  const [searched, setSearched] = useState(false);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [playingMusicIndex, setPlayingMusicIndex] = useState(-1);
 
-  const [playingId, setPlayingId] = useState<string | null>(null); // 记录正在播放/加载的歌曲ID
-  const [currentSong, setCurrentSong] = useState<Song | null>(null); // 当前播放的歌曲信息
-  const [audioUrl, setAudioUrl] = useState<string>('');
+  // 播放器状态
+  const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null); // 引用audio元素
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-  useEffect(() => {
-    if (audioUrl && audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play().then(() => setIsPlaying(true));
-    }
-  }, [audioUrl]);
-
-  // 3. 使用hook判断是否为移动端视图
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
+  // 搜索处理
   const handleSearch = async (value: string) => {
-    // ... (函数内容保持不变)
     const keyword = value.trim();
     if (!keyword) return;
+
     setLoading(true);
     setSearched(true);
-    setCurrentKeyword(keyword);
+    let currentPage = 1;
+    if (keyword != currentKeyword) {
+      setCurrentKeyword(keyword); // 保存当前关键词
+    } else {
+      currentPage = page + 1;
+    }
+
     try {
-      const result = await invoke<SearchResult>("search_music", {
-        keyword,
-        page: 1,
-      });
-      setSongs(result.songs);
-      setHasMore(result.has_more);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("搜索失败:", error);
-      message.error(`搜索失败: ${error}`);
+      // 调用我们封装好的 API 函数
+      const result = await searchMusic(keyword, currentPage);
+      keyword == currentKeyword
+        ? setSongs(songs.concat(result.songs))
+        : setSongs(result.songs);
+      setHasMore(result.has_more); // 如果需要加载更多
+      setPage(currentPage);
+    } catch (error: any) {
+      message.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadMore = async () => {
-    // ... (函数内容保持不变)
-    if (!hasMore || loadingMore) return;
-    setLoadingMore(true);
-    const nextPage = currentPage + 1;
-    try {
-      const result = await invoke<SearchResult>("search_music", {
-        keyword: currentKeyword,
-        page: nextPage,
-      });
-      setSongs((prevSongs) => [...prevSongs, ...result.songs]);
-      setHasMore(result.has_more);
-      setCurrentPage(nextPage);
-    } catch (error) {
-      console.error("加载更多失败:", error);
-      message.error(`加载更多失败: ${error}`);
-    } finally {
-      setLoadingMore(false);
+  // 下载处理
+  const handleDetail = async (song: Song, index: number) => {
+    setPlayingMusicIndex(index);
+    message.info(`获取信息中: ${song.title}`);
+    if (!song.url) return;
+    const result = await musicDetail(song);
+    setCurrentSong(result);
+    handlePlay(result);
+
+    if (audioRef.current && result.play_url) {
+      audioRef.current.src = result.play_url;
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((e) => console.error("播放失败:", e));
+    }
+    message.destroy("play");
+  };
+
+  // --- 播放逻辑 ---
+  const handlePlay = (song: Song) => {
+    if (currentSong?.song_id === song.song_id) {
+      // 如果是同一首歌，切换播放/暂停
+      handlePlayPause();
+    } else {
+      // 播放新歌曲
+      setCurrentSong(song);
+      setIsPlaying(true);
+      // 注意：在真实应用中，url 需要从后端获取
+      // audioRef.current.src = song.url;
+      // audioRef.current.play();
+      message.success(`开始播放: ${song.title}`);
     }
   };
 
-  const handleDownload = async (song: Song) => {
-    setDownloadingId(song.id);
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      audioRef.current?.pause();
+    } else {
+      audioRef.current?.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+  const _playIndexMuisc = (index: number) => {
+    if (index < 0 || index >= songs.length) {
+      setPlayingMusicIndex(-1);
+      handleClose();
+      return;
+    }
+    const song = songs[index];
+    setPlayingMusicIndex(index);
+    handleDetail(song, index);
+  };
+
+  const handleNext = () => _playIndexMuisc(playingMusicIndex + 1);
+  const handlePrev = () => _playIndexMuisc(playingMusicIndex - 1);
+  const handleSeek = (value: number) => {
+    const duration = audioRef.current?.duration || 0;
+    if (audioRef.current)
+      audioRef.current.currentTime = (value / 100) * duration;
+  };
+  const handleClose = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = ""; // 清空资源，防止继续在后台加载
+    }
+    setIsPlaying(false);
+    setCurrentSong(null);
+  };
+
+  const handleSave = async () => {
+    const song = currentSong;
+    const messageKey = `download-${song?.song_id}`;
     message.loading({
-      content: `正在解析《${song.title}》的下载链接...`,
-      key: "download",
+      content: `《${song?.title}》: 解析链接...`,
+      key: messageKey,
       duration: 0,
     });
 
     try {
-      await invoke("download_song", {
-        songId: song.id,
-        title: song.title,
-        artist: song.artist,
-        keyword: currentKeyword,
+      if (!song?.play_url) throw new Error("未能获取下载链接");
+
+      message.loading({
+        content: `《${song.title}》: 选择保存位置...`,
+        key: messageKey,
+        duration: 0,
       });
+
+      const suggestedFilename = `${song.title} - ${song.artist}.mp3`;
+      const defaultPath = await downloadDir();
+      const filePath = await save({
+        title: "选择保存位置",
+        defaultPath: `${defaultPath}/${suggestedFilename}`,
+        filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
+      });
+
+      if (!filePath) {
+        message.destroy(messageKey);
+        // setDownloadingId(null);
+        return;
+      }
+
+      message.loading({
+        content: `《${song.title}》: 下载中...`,
+        key: messageKey,
+        duration: 0,
+      });
+
+      // --- 最终的、结合了所有知识的请求 ---
+      const response = await tauriFetch(song.play_url, {
+        method: "GET",
+        headers: {
+          // 伪造一个合法的来源页面，这是通过服务器校验的关键
+          Referer: `https://www.gequhai.net${song.url}`,
+        },
+      });
+      // ---
+
+      if (!response.ok) {
+        throw new Error(`下载请求失败，状态: ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await writeFile(filePath, uint8Array);
+
       message.success({
         content: `《${song.title}》已成功保存！`,
-        key: "download",
+        key: messageKey,
         duration: 3,
       });
+      // await open(filePath.substring(0, filePath.lastIndexOf("/")));
     } catch (error: any) {
-      // --- 核心改动开始 ---
-      const errorStr = String(error);
-
-      // 判断是否是我们自定义的失效链接错误
-      if (errorStr.includes("链接已失效或超时")) {
-        const url = errorStr.split(":").slice(1).join(":"); // 提取URL
-        message.destroy("download"); // 销毁加载提示
-
-        Modal.error({
-          title: "下载失败",
-          content: (
-            <div>
-              <p>服务器返回的不是有效的音乐文件，链接可能已超时。</p>
-              <p>您可以点击下面的链接，在浏览器中尝试下载：</p>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ wordBreak: "break-all" }}
-              >
-                {url}
-              </a>
-            </div>
-          ),
-          okText: "知道了",
-        });
-      } else if (error !== "用户取消了下载或路径无效") {
-        message.error({
-          content: `下载失败: ${error}`,
-          key: "download",
-          duration: 3,
-        });
-      } else {
-        message.destroy("download");
-      }
-      // --- 核心改动结束 ---
-      console.error("下载失败:", error);
+      message.error({
+        content: `下载失败: ${error.message || "未知错误"}`,
+        key: messageKey,
+        duration: 5,
+      });
     } finally {
-      setDownloadingId(null);
+      // setDownloadingId(null);
     }
   };
 
-  const handlePlay = async (song: Song) => {
-    if (currentSong?.id === song.id) {
-        // 如果点击的是当前正在播放的歌曲，则切换播放/暂停
-        if (isPlaying) {
-            audioRef.current?.pause();
-            setIsPlaying(false);
-        } else {
-            audioRef.current?.play();
-            setIsPlaying(true);
-        }
-        return;
-    }
+  // 使用 useEffect 监听 audio 元素的事件来更新进度
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    setPlayingId(song.id);
-    setCurrentSong(song);
-    setIsPlaying(false);
-    message.loading({ content: `正在加载《${song.title}》...`, key: 'play' });
-    try {
-        const url = await invoke<string>('get_play_url', {
-            songId: song.id,
-            title: song.title,
-            artist: song.artist,
-            keyword: currentKeyword,
-        });
-        setAudioUrl(url);
-        message.success({ content: '加载成功', key: 'play' });
-    } catch (error) {
-        message.error({ content: `播放失败: ${error}`, key: 'play' });
-        setCurrentSong(null);
-    } finally {
-        setPlayingId(null);
-    }
-  };
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
 
-  const loadMoreButton = hasMore ? (
-    <div style={{ textAlign: "center", marginTop: 12, marginBottom: 8 }}>
-      <Button onClick={loadMore} loading={loadingMore}>
-        加载更多
-      </Button>
-    </div>
-  ) : null;
+    console.log(audio);
 
-  // 4. 根据是否为移动端调整padding
-  const contentPadding = isMobile ? "12px" : "24px";
-  const cardPadding = isMobile ? "16px" : "24px";
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, []);
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Header
+    <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
+      <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          padding: `env(safe-area-inset-top) ${contentPadding} 0 ${contentPadding}`,
-          height: `calc(50px + env(safe-area-inset-top))`,
+          position: "sticky", // 1. 将 Header 设置为粘性定位
+          top: 0, // 2. 粘在顶部
+          zIndex: 10, // 3. 确保它在最上层
         }}
       >
-        <Title level={3} style={{ color: "white", margin: 0 }}>
-          🎶 音乐搜索下载器
-        </Title>
-      </Header>
-      <Content style={{ padding: contentPadding }}>
-        <div
-          style={{ background: "#fff", padding: cardPadding, borderRadius: 8 }}
+        <Header
+          style={{
+            // 1. 设置浅粉色背景和底部边框
+            backgroundColor: "#fff5f5",
+            borderBottom: "1px solid #ffb5b5ff",
+            display: "flex",
+            justifyContent: "center",
+            padding: `env(safe-area-inset-top) 16px 4px 16px`,
+            height: `calc(66px + env(safe-area-inset-top))`,
+          }}
         >
+          <Flex align="end" gap={1}>
+            <Image
+              src="/src/assets/icon.png"
+              preview={false}
+              width={25}
+              height={25}
+              style={{ display: "flex" }}
+            />
+            <Title
+              level={3}
+              style={{
+                margin: 0,
+                color: "#333333",
+                lineHeight: 1, // 确保标题行高不会增加额外空间
+              }}
+            >
+              MusicBox
+            </Title>
+          </Flex>
+        </Header>
+        <div style={{ padding: "5px" }}>
           <Search
             placeholder="输入歌曲名、歌手..."
             enterButton="搜索"
@@ -237,53 +278,42 @@ function App() {
             onSearch={handleSearch}
             loading={loading}
           />
-          <div style={{ marginTop: 24 }}>
-            <Spin spinning={loading} tip="正在网络上玩命搜索中...">
+        </div>
+      </div>
+
+      <Content className="content-padding-bottom" style={{ padding: "4px" }}>
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 8,
+            maxWidth: "800px",
+            margin: "0 auto",
+            paddingBottom: currentSong ? "90px" : "24px",
+            transition: "padding-bottom 0.3s ease-in-out", // 增加一个平滑的过渡效果
+          }}
+        >
+          <div>
+            <Spin spinning={loading} tip="正在玩命搜索中...">
               {songs.length > 0 ? (
                 <List
-                  bordered
+                  style={{
+                    padding: "14px",
+                  }}
                   dataSource={songs}
-                  loadMore={loadMoreButton}
-                  renderItem={(item) => (
-                    <List.Item>
-                      {/* 5. 使用响应式栅格系统重构列表项 */}
-                      <Row align="middle" style={{ width: "100%" }}>
-                        <Col flex="auto" style={{ minWidth: 0 }}>
-                          <List.Item.Meta
-                            title={
-                              <Text strong ellipsis>
-                                {item.title}
-                              </Text>
-                            }
-                            description={
-                              <Text type="secondary" ellipsis>
-                                歌手: {item.artist}
-                              </Text>
-                            }
-                          />
-                        </Col>
-                        <Col
-                          flex={isMobile ? "100px" : "180px"}
-                          style={{ textAlign: "right" }}
-                        >
-                          <Button
-                            type="primary"
-                            key="download"
-                            loading={downloadingId === item.id}
-                            onClick={() => handleDownload(item)}
-                            style={{ marginRight: 8 }}
-                          >
-                            下载
-                          </Button>
-                          <Button
-                            key="play"
-                            icon={currentSong?.id === item.id && isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                            loading={playingId === item.id}
-                            onClick={() => handlePlay(item)}
-                            disabled
-                          />
-                        </Col>
-                      </Row>
+                  renderItem={(item, index) => (
+                    <List.Item
+                      actions={[
+                        <Button
+                          type="primary"
+                          icon={<PlayCircleOutlined />}
+                          onClick={() => handleDetail(item, index)}
+                        />,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<Text>{item.title}</Text>}
+                        description={`${item.artist}`}
+                      />
                     </List.Item>
                   )}
                 />
@@ -292,10 +322,34 @@ function App() {
                   <Empty description="未能找到相关歌曲，换个关键词试试？" />
                 )
               )}
+              {hasMore && (
+                <Flex justify="center">
+                  <Button
+                    type="primary"
+                    onClick={() => handleSearch(currentKeyword)}
+                  >
+                    加载更多
+                  </Button>
+                </Flex>
+              )}
             </Spin>
           </div>
         </div>
       </Content>
+
+      {/* 播放器和隐藏的 audio 标签 */}
+      <PlayerBar
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        currentTime={currentTime}
+        onPlayPause={handlePlayPause}
+        onSave={handleSave}
+        onNext={handleNext}
+        onPrev={handlePrev}
+        onSeek={handleSeek}
+        onClose={handleClose}
+      />
+      <audio ref={audioRef} style={{ display: "none" }} />
     </Layout>
   );
 }
