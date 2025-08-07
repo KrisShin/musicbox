@@ -224,7 +224,7 @@ function App() {
     // 当 src 改变，音频开始加载，元数据加载完毕后会触发此事件
     const handleMetadataLoaded = () => {
       // 此时 audio.duration 就有值了
-      setCurrentSong({ ...currentSong, duration: audio.duration });
+      currentSong && setCurrentSong({ ...currentSong, duration: audio.duration });
       // 元数据加载完后，再开始播放
       audio.play();
       setIsPlaying(true);
