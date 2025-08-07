@@ -113,8 +113,6 @@ export const musicDetail = async (song: Song): Promise<Song> => {
       /ap\.template\.dtime\.innerHTML = '.*?(\d{2}:\d{2}).*?';/
     );
     let duration: any = durationMatch ? durationMatch[1] : "00:00";
-    const [min, sec] = duration.split(":").map(Number);
-    duration = min * 60 + sec;
 
     const playIdMatch = htmlText.match(/window\.play_id = '(.*?)';/);
     if (!playIdMatch || !playIdMatch[1]) {

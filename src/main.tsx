@@ -17,6 +17,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           Button: {
             colorPrimary: primaryThemeColor
           },
+          Slider: {
+            railBg: '#e7c9b5ff',
+            handleColor: primaryThemeColor,
+            trackBg: primaryThemeColor
+          }
         },
       }}
     >
