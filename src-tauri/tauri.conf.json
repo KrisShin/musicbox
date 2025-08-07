@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "musicbox",
-  "version": "0.1.120",
+  "version": "0.1.124",
   "identifier": "com.kris.musicbox",
   "build": {
     "beforeDevCommand": "yarn dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:5173",
     "beforeBuildCommand": "yarn build",
     "frontendDist": "../dist"
   },
