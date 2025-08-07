@@ -11,14 +11,14 @@ import {
   Flex,
   message,
 } from "antd";
-import { DownloadOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import { PlayCircleOutlined } from "@ant-design/icons";
 import PlayerBar from "./components/PlayerBar";
-import type { Song, SearchResult } from "./types";
+import type { Song } from "./types";
 import { searchMusic, musicDetail } from "./crawler";
 import { downloadDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 const { Header, Content } = Layout;
 const { Search } = Input;
