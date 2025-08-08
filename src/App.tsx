@@ -73,7 +73,7 @@ function App() {
   // 下载处理
   const handleDetail = async (song: Song, index: number) => {
     setPlayingMusicIndex(index);
-    message.info(`获取信息中: ${song.title}`);
+    message.info(`获取信息中: ${song.title}, 请稍候`);
     if (!song.url) return;
     const result = await musicDetail(song);
     setCurrentSong(result);
@@ -271,12 +271,12 @@ function App() {
             display: "flex",
             justifyContent: "center",
             padding: `env(safe-area-inset-top) 16px 4px 16px`,
-            height: `calc(66px + env(safe-area-inset-top))`,
+            height: `calc(75px + env(safe-area-inset-top))`,
           }}
         >
           <Flex align="end" gap={1}>
             <Image
-              src="./src/assets/icon.png"
+              src="/header_icon.png"
               preview={false}
               width={25}
               height={25}
