@@ -18,7 +18,7 @@ pub struct MusicOptionalDetails {
     #[serde(rename = "duration")]
     pub duration_secs: Option<f64>,
     pub play_url: Option<String>,
-    
+
     // 这两个字段在详情页也能获取到，也放在这里
     pub download_mp3: Option<String>,
     pub download_kuake: Option<String>,
@@ -34,18 +34,9 @@ pub struct Music {
     pub title: String,
     pub artist: String,
     pub url: String,
-    
+
     // 使用 #[serde(flatten)] 将所有详情字段“拍平”合并进来
     // 前端传来的 JSON 无需任何改变！
-    #[serde(flatten)]
-    pub details: MusicOptionalDetails,
-}
-
-// 3. [更新详情载荷] - 用于更新歌曲详情的专用 DTO
-// 非常清晰地表达了“我需要用这些详情来更新哪个 song_id”
-#[derive(Debug, Deserialize)]
-pub struct UpdateDetailPayload {
-    pub song_id: String,
     #[serde(flatten)]
     pub details: MusicOptionalDetails,
 }
@@ -124,8 +115,19 @@ pub async fn save_music(pool: &DbPool, songs: Vec<Music>) -> Result<(), sqlx::Er
     Ok(())
 }
 
+// 3. [更新详情载荷] - 用于更新歌曲详情的专用 DTO
+// 非常清晰地表达了“我需要用这些详情来更新哪个 song_id”
+#[derive(Debug, Deserialize)]
+pub struct UpdateDetailPayload {
+    pub song_id: String,
+    #[serde(flatten)]
+    pub details: MusicOptionalDetails,
+}
 /// 核心函数：根据 song_id 更新一首歌曲的详情信息
-pub async fn update_music_detail(pool: &DbPool, payload: UpdateDetailPayload) -> Result<(), sqlx::Error> {
+pub async fn update_music_detail(
+    pool: &DbPool,
+    payload: UpdateDetailPayload,
+) -> Result<(), sqlx::Error> {
     // 2. 准备一个 UPDATE SQL 语句
     // 我们只更新详情相关的字段，不触碰 title, artist 等基础信息
     let sql = r#"
@@ -145,6 +147,154 @@ pub async fn update_music_detail(pool: &DbPool, payload: UpdateDetailPayload) ->
         .bind(&payload.details.download_kuake)
         .bind(payload.details.download_mp3_id)
         .bind(&payload.song_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ToggleMusicPayload {
+    pub playlist_id: Option<i64>, // 允许前端不传歌单ID，由后端处理默认逻辑
+    pub song_ids: Vec<String>,
+}
+
+pub async fn toggle_songs_in_playlist(
+    pool: &DbPool,
+    payload: ToggleMusicPayload,
+) -> Result<(), sqlx::Error> {
+    // 2. 开启一个数据库事务，这是保证复杂操作原子性的关键
+    let mut tx = pool.begin().await?;
+
+    // 3. [智能处理歌单ID]
+    //    - 如果前端提供了 playlist_id，直接使用。
+    //    - 如果没提供，查找第一个歌单。
+    //    - 如果没有任何歌单，创建一个新的名为 "我的歌单" 的默认歌单。
+    let playlist_id = match payload.playlist_id {
+        Some(id) => id,
+        None => {
+            // 尝试查找第一个已存在的歌单
+            let first_playlist: Option<(i64,)> =
+                sqlx::query_as("SELECT id FROM playlists ORDER BY created_at LIMIT 1")
+                    .fetch_optional(&mut *tx)
+                    .await?;
+
+            if let Some((id,)) = first_playlist {
+                id // 使用找到的第一个歌单ID
+            } else {
+                // 如果一个歌单都没有，创建一个新的
+                sqlx::query("INSERT INTO playlists (name) VALUES ('我的歌单')")
+                    .execute(&mut *tx)
+                    .await?
+                    .last_insert_rowid() // 获取新创建歌单的ID
+            }
+        }
+    };
+
+    // 4. [核心切换逻辑] 遍历所有需要操作的 song_id
+    for song_id in &payload.song_ids {
+        // 尝试查找歌曲是否已在歌单中
+        let existing: Option<(i64,)> = sqlx::query_as(
+            "SELECT playlist_id FROM playlist_songs WHERE playlist_id = ? AND song_id = ?",
+        )
+        .bind(playlist_id)
+        .bind(song_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if existing.is_some() {
+            // 如果已存在，则从歌单中移除
+            sqlx::query("DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?")
+                .bind(playlist_id)
+                .bind(song_id)
+                .execute(&mut *tx)
+                .await?;
+        } else {
+            // 如果不存在，则添加到歌单中
+            // a. 计算新歌曲应该在的位置 (当前歌单歌曲总数)
+            let position: (i64,) =
+                sqlx::query_as("SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ?")
+                    .bind(playlist_id)
+                    .fetch_one(&mut *tx)
+                    .await?;
+
+            // b. 插入新记录
+            sqlx::query(
+                "INSERT INTO playlist_songs (playlist_id, song_id, position) VALUES (?, ?, ?)",
+            )
+            .bind(playlist_id)
+            .bind(song_id)
+            .bind(position.0)
+            .execute(&mut *tx)
+            .await?;
+        }
+    }
+
+    // 5. [智能处理封面逻辑]
+    //    检查当前歌单封面是否为空。如果是，并且我们刚刚添加了歌曲，
+    //    就用第一首被添加的歌曲的封面作为歌单封面。
+    let playlist_cover: (Option<String>,) =
+        sqlx::query_as("SELECT cover_path FROM playlists WHERE id = ?")
+            .bind(playlist_id)
+            .fetch_one(&mut *tx)
+            .await?;
+
+    if playlist_cover.0.is_none() && !payload.song_ids.is_empty() {
+        // 从刚传入的歌曲列表中找到第一首歌的封面
+        let first_song_cover: Option<(Option<String>,)> =
+            sqlx::query_as("SELECT cover_url FROM songs WHERE song_id = ?")
+                .bind(&payload.song_ids[0])
+                .fetch_optional(&mut *tx)
+                .await?;
+
+        if let Some((Some(cover_url),)) = first_song_cover {
+            // 如果能匹配到这里，说明：
+            // 1. 歌曲在数据库中存在 (外层 Some 匹配成功)
+            // 2. 歌曲的 cover_url 字段不为 NULL (内层 Some 匹配成功)
+            // 3. `cover_url` 现在是一个干净的 String
+            sqlx::query("UPDATE playlists SET cover_path = ? WHERE id = ?")
+                .bind(cover_url)
+                .bind(playlist_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+
+    // 6. 如果所有操作都成功，提交整个事务
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn create_playlist(pool: &DbPool, name: String) -> Result<i64, sqlx::Error> {
+    let result = sqlx::query("INSERT INTO playlists (name) VALUES (?)")
+        .bind(name)
+        .execute(pool)
+        .await?;
+
+    // 返回最后插入行的 ID
+    Ok(result.last_insert_rowid())
+}
+
+pub async fn delete_playlist(pool: &DbPool, playlist_id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM playlists WHERE id = ?")
+        .bind(playlist_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+pub async fn rename_playlist(
+    pool: &DbPool,
+    playlist_id: i64,
+    new_name: String,
+) -> Result<(), sqlx::Error> {
+    // UPDATE 语句会自动触发我们之前创建的 trg_playlists_update_updated_at 触发器，
+    // 自动更新 updated_at 字段。
+    sqlx::query("UPDATE playlists SET name = ? WHERE id = ?")
+        .bind(new_name)
+        .bind(playlist_id)
         .execute(pool)
         .await?;
 

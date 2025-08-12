@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use musicbox_lib::db::{self, DbPool, Music, UpdateDetailPayload};
+use musicbox_lib::db::{self, DbPool, Music, ToggleMusicPayload, UpdateDetailPayload};
 use tauri::Manager;
 
 // 一个示例 command，展示如何从 State 中获取连接池
@@ -34,6 +34,41 @@ async fn update_music_detail(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn toggle_songs_in_playlist(
+    payload: ToggleMusicPayload,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    db::toggle_songs_in_playlist(state.inner(), payload)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn create_playlist(name: String, state: tauri::State<'_, DbPool>) -> Result<i64, String> {
+    db::create_playlist(state.inner(), name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_playlist(playlist_id: i64, state: tauri::State<'_, DbPool>) -> Result<(), String> {
+    db::delete_playlist(state.inner(), playlist_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn rename_playlist(
+    playlist_id: i64,
+    new_name: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    db::rename_playlist(state.inner(), playlist_id, new_name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
@@ -58,7 +93,11 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             some_database_operation,
             save_music,
-            update_music_detail
+            update_music_detail,
+            toggle_songs_in_playlist,
+            create_playlist,
+            delete_playlist,
+            rename_playlist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
