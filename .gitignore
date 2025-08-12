@@ -27,3 +27,6 @@ dist-ssr
 .secrets
 src-tauri/gen/android/keystore.properties
 src-tauri/gen/android/app/top.kris.jks
+
+src-tauri/*.db
+src-tauri/.env

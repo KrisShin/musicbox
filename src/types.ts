@@ -1,16 +1,16 @@
 // src/types.ts
 
-export interface SongDetail {
+export interface MusicDetail {
   lyric?: string;
   download_mp3?: string;
   download_kuake?: string;
   cover_url?: string;
   duration?: number;
-  download_mp3_id?: number;
+  download_mp3_id?: string;
   play_url?: string;
 }
 
-export interface Song extends SongDetail {
+export interface Muisc extends MusicDetail {
   song_id: string;
   title: string;
   artist: string;
@@ -19,6 +19,6 @@ export interface Song extends SongDetail {
 }
 
 export interface SearchResult {
-  songs: Song[];
+  songs: Muisc[];
   has_more: boolean;
 }

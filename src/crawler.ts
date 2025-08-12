@@ -1,16 +1,19 @@
 // src/crawler.ts (或你的API文件)
 
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { Song, SearchResult } from "./types"; // 确保类型定义正确
+import { invoke } from '@tauri-apps/api/core';
+import { Muisc, SearchResult } from "./types"; // 确保类型定义正确
 
 const parser = new DOMParser();
+
+const BASE_URL = "https://www.gequhai.net"; // 基础URL
 
 export const searchMusic = async (
   keyword: string,
   page: number = 1
 ): Promise<SearchResult> => {
   // 1. 更新为 gequhai.net 的 URL 结构
-  const searchUrl = `https://www.gequhai.net/s/${keyword}?page=${page}`;
+  const searchUrl = `${BASE_URL}/s/${keyword}?page=${page}`;
 
   try {
     const response = await tauriFetch(searchUrl, {
@@ -28,7 +31,7 @@ export const searchMusic = async (
     // 直接选取所有包含歌曲信息的 <a> 标签
     const linkElements = doc.querySelectorAll("a.music-link");
 
-    const musicList: Song[] = [];
+    const musicList: Muisc[] = [];
 
     linkElements.forEach((link) => {
       const title = link.querySelector("span.music-title > span")?.textContent;
@@ -66,6 +69,14 @@ export const searchMusic = async (
     if (lastPageItem?.classList.contains("disabled") || !lastPageItem) {
       hasMore = false;
     }
+    if (musicList && musicList.length > 0) {
+      try {
+        await invoke('save_music', { songs: musicList }); // 'save_music' 必须与 Rust command 的函数名完全一致
+        console.log('成功将', musicList.length, '首歌曲保存到本地数据库！');
+      } catch (error) {
+        console.error('调用 save_music 失败:', error);
+      }
+    }
 
     return {
       songs: musicList,
@@ -77,8 +88,8 @@ export const searchMusic = async (
   }
 };
 
-export const musicDetail = async (song: Song): Promise<Song> => {
-  const fullDetailUrl = `https://www.gequhai.net${song.url}`;
+export const musicDetail = async (song: Muisc): Promise<Muisc> => {
+  const fullDetailUrl = `${BASE_URL}${song.url}`;
 
   try {
     // 步骤 1: 获取详情页的HTML文本
@@ -109,10 +120,17 @@ export const musicDetail = async (song: Song): Promise<Song> => {
       : "";
 
     // 使用正则表达式从整个HTML文本中提取动态信息
-    const durationMatch = htmlText.match(
-      /ap\.template\.dtime\.innerHTML = '.*?(\d{2}:\d{2}).*?';/
-    );
-    let duration: any = durationMatch ? durationMatch[1] : "00:00";
+    // const durationMatch = htmlText.match(
+    //   /ap\.template\.dtime\.innerHTML = '.*?(\d{2}:\d{2}).*?';/
+    // );
+    // let duration: any = durationMatch ? durationMatch[1] : "00:00";
+    
+
+    const mp3IdMatch = htmlText.match(/window\.mp3_id = '(.*?)';/);
+    if (!mp3IdMatch || !mp3IdMatch[1]) {
+      throw new Error("在详情页中未能解析出 mp3_id");
+    }
+    const download_mp3_id = mp3IdMatch[1];
 
     const playIdMatch = htmlText.match(/window\.play_id = '(.*?)';/);
     if (!playIdMatch || !playIdMatch[1]) {
@@ -123,7 +141,7 @@ export const musicDetail = async (song: Song): Promise<Song> => {
 
     // 步骤 3: 模拟页面JS，POST请求 /api/play-url
     console.log(`(前端爬虫) 步骤3: 携带 play_id 请求 /api/play-url`);
-    const apiUrl = "https://www.gequhai.net/api/play-url";
+    const apiUrl = `${BASE_URL}/api/play-url`;
 
     const apiResponse = await tauriFetch(apiUrl, {
       method: "POST",
@@ -149,13 +167,37 @@ export const musicDetail = async (song: Song): Promise<Song> => {
     const play_url = apiData.data.url;
     console.log(`(前端爬虫) 步骤4: 成功获取到直链 -> ${play_url}`);
 
-    return {
+    const updatedSong: Muisc = {
       ...song,
       cover_url,
       lyric,
-      duration,
+      // duration,
+      download_mp3_id,
+      download_mp3: `${BASE_URL}/api/down_mp3/${download_mp3_id}`,
+      download_kuake: `${BASE_URL}/api/down_url/${download_mp3_id}`,
       play_url,
     };
+
+    try {
+      // 构建与 Rust `UpdateDetailPayload` 完全匹配的对象
+      const payload = {
+        song_id: updatedSong.song_id,
+        // 所有详情字段直接放在顶层，因为 Rust 端有 #[serde(flatten)]
+        lyric: updatedSong.lyric,
+        cover_url: updatedSong.cover_url,
+        play_url: updatedSong.play_url,
+        download_mp3: updatedSong.download_mp3,
+        download_kuake: updatedSong.download_kuake,
+        download_mp3_id: updatedSong.download_mp3_id,
+      };
+      // 注意 invoke 的第二个参数结构
+      await invoke('update_music_detail', { payload: payload });
+      console.log(`(后端交互) 成功更新歌曲详情到数据库: ${updatedSong.title}`);
+    } catch (dbError) {
+      console.error('调用 update_music_detail 失败:', dbError);
+    }
+
+    return updatedSong;
   } catch (error) {
     console.error("获取歌曲详情失败:", error);
     throw error;

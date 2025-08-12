@@ -13,7 +13,7 @@ import {
 } from "antd";
 import { PlayCircleOutlined } from "@ant-design/icons";
 import PlayerBar from "./components/PlayerBar";
-import type { Song } from "./types";
+import type { Muisc } from "./types";
 import { searchMusic, musicDetail } from "./crawler";
 import { downloadDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -30,13 +30,13 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [currentKeyword, setCurrentKeyword] = useState("");
   const [searched, setSearched] = useState(false);
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<Muisc[]>([]);
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState(false);
   const [playingMusicIndex, setPlayingMusicIndex] = useState(-1);
 
   // 播放器状态
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
+  const [currentSong, setCurrentSong] = useState<Muisc | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -58,6 +58,11 @@ function App() {
     try {
       // 调用我们封装好的 API 函数
       const result = await searchMusic(keyword, currentPage);
+      if (result.songs.length === 0) {
+        message.warning("未找到相关歌曲，请尝试其他关键词");
+        setHasMore(false)
+        return
+      }
       keyword == currentKeyword
         ? setSongs(songs.concat(result.songs))
         : setSongs(result.songs);
@@ -71,7 +76,7 @@ function App() {
   };
 
   // 下载处理
-  const handleDetail = async (song: Song, index: number) => {
+  const handleDetail = async (song: Muisc, index: number) => {
     setPlayingMusicIndex(index);
     message.info(`获取信息中: ${song.title}, 请稍候`);
     if (!song.url) return;
@@ -87,7 +92,7 @@ function App() {
   };
 
   // --- 播放逻辑 ---
-  const handlePlay = (song: Song) => {
+  const handlePlay = (song: Muisc) => {
     if (currentSong?.song_id === song.song_id) {
       // 如果是同一首歌，切换播放/暂停
       handlePlayPause();

@@ -8,7 +8,7 @@ import {
   StepForwardOutlined,
   StepBackwardOutlined,
 } from "@ant-design/icons";
-import type { Song } from "../../types";
+import type { Muisc } from "../../types";
 import LyricScroller from "../LyricScroller";
 
 const { Footer } = Layout;
@@ -16,7 +16,7 @@ const { Text } = Typography;
 
 // 定义组件的 Props 接口
 interface PlayerBarProps {
-  currentSong: Song | null;
+  currentSong: Muisc | null;
   isPlaying: boolean;
   currentTime: number;
   onPlayPause: () => void;
