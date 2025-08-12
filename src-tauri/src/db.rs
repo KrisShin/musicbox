@@ -1,6 +1,6 @@
 // src-tauri/src/db.rs
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool, migrate::Migrator};
 use std::{fs::OpenOptions, path::PathBuf};
 use tauri::{AppHandle, Manager}; // 注意这里我们直接使用 AppHandle
@@ -299,4 +299,46 @@ pub async fn rename_playlist(
         .await?;
 
     Ok(())
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)] // FromRow 让我们能直接将查询结果映射到这个结构体
+pub struct PlaylistInfo {
+    pub id: i64,
+    pub name: String,
+    pub cover_path: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    #[sqlx(rename = "song_count")] // 告诉 sqlx 将查询结果的 song_count 列映射到此字段
+    pub song_count: i64,
+}
+
+/// 函数：获取所有播放列表及其包含的歌曲数量
+pub async fn get_all_playlists(pool: &DbPool) -> Result<Vec<PlaylistInfo>, sqlx::Error> {
+    // 2. 编写一个高效的 SQL 查询
+    //    - 使用 LEFT JOIN 确保即使是空歌单也能被查询到
+    //    - 使用 COUNT(ps.song_id) 来统计每个歌单的歌曲数量
+    //    - 使用 GROUP BY p.id 来对每个歌单进行分组聚合
+    let playlists = sqlx::query_as::<_, PlaylistInfo>(
+        r#"
+            SELECT
+                p.id,
+                p.name,
+                p.cover_path,
+                p.created_at,
+                p.updated_at,
+                COUNT(ps.song_id) as song_count
+            FROM
+                playlists p
+            LEFT JOIN
+                playlist_songs ps ON p.id = ps.playlist_id
+            GROUP BY
+                p.id
+            ORDER BY
+                p.created_at ASC
+        "#,
+    )
+    .fetch_all(pool) // 获取所有查询结果
+    .await?;
+
+    Ok(playlists)
 }

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use musicbox_lib::db::{self, DbPool, Music, ToggleMusicPayload, UpdateDetailPayload};
+use musicbox_lib::db::{self, DbPool, Music, PlaylistInfo, ToggleMusicPayload, UpdateDetailPayload};
 use tauri::Manager;
 
 // 一个示例 command，展示如何从 State 中获取连接池
@@ -69,6 +69,12 @@ async fn rename_playlist(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn get_all_playlists(state: tauri::State<'_, DbPool>) -> Result<Vec<PlaylistInfo>, String> {
+    db::get_all_playlists(state.inner())
+        .await
+        .map_err(|e| e.to_string())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
@@ -98,6 +104,7 @@ fn main() {
             create_playlist,
             delete_playlist,
             rename_playlist,
+            get_all_playlists
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
