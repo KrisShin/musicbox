@@ -28,7 +28,7 @@ const { Title, Text } = Typography;
 function App() {
   // 状态管理
   const [loading, setLoading] = useState(false);
-  const [currentKeyword, setCurrentKeyword] = useState("");
+  const [currentKeyword, setCurrentKeyword] = useState("热门");
   const [searched, setSearched] = useState(false);
   const [songs, setSongs] = useState<Muisc[]>([]);
   const [page, setPage] = useState<number>(1);
@@ -258,6 +258,10 @@ function App() {
       audio.removeEventListener("ended", handleEnded);
     };
   }, [currentSong]); // 依赖 currentSong，当歌曲切换时，重新设置监听
+
+  useEffect(() => {
+    handleSearch('热门'); // 初始加载热门歌曲
+  },[])
 
   return (
     <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
