@@ -156,7 +156,7 @@ pub async fn toggle_music_in_playlist(
 
     for song_id in &payload.song_ids {
         let existing: Option<(i64,)> = sqlx::query_as(
-            "SELECT playlist_id FROM playlist_songs WHERE playlist_id = ? AND song_id = ?",
+            "SELECT playlist_id FROM playlist_music WHERE playlist_id = ? AND song_id = ?",
         )
         .bind(playlist_id)
         .bind(song_id)
@@ -164,20 +164,20 @@ pub async fn toggle_music_in_playlist(
         .await?;
 
         if existing.is_some() {
-            sqlx::query("DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?")
+            sqlx::query("DELETE FROM playlist_music WHERE playlist_id = ? AND song_id = ?")
                 .bind(playlist_id)
                 .bind(song_id)
                 .execute(&mut *tx)
                 .await?;
         } else {
             let position: (i64,) =
-                sqlx::query_as("SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ?")
+                sqlx::query_as("SELECT COUNT(*) FROM playlist_music WHERE playlist_id = ?")
                     .bind(playlist_id)
                     .fetch_one(&mut *tx)
                     .await?;
 
             sqlx::query(
-                "INSERT INTO playlist_songs (playlist_id, song_id, position) VALUES (?, ?, ?)",
+                "INSERT INTO playlist_music (playlist_id, song_id, position) VALUES (?, ?, ?)",
             )
             .bind(playlist_id)
             .bind(song_id)
@@ -271,11 +271,11 @@ pub async fn get_all_playlists(
             p.created_at,
             p.updated_at,
             COUNT(ps.song_id) as song_count,
-            EXISTS(SELECT 1 FROM playlist_songs WHERE playlist_id = p.id AND song_id = ?) as is_in
+            EXISTS(SELECT 1 FROM playlist_music WHERE playlist_id = p.id AND song_id = ?) as is_in
         FROM
-            playlists p
+            playlist p
         LEFT JOIN
-            playlist_songs ps ON p.id = ps.playlist_id
+            playlist_music ps ON p.id = ps.playlist_id
         GROUP BY
             p.id
         ORDER BY
@@ -312,7 +312,7 @@ pub async fn get_music_by_playlist_id(
                 ps.position,
                 ps.added_to_list_at
             FROM
-                playlist_songs ps
+                playlist_music ps
             INNER JOIN
                 songs s ON ps.song_id = s.song_id
             WHERE
