@@ -16,7 +16,7 @@ const { Text } = Typography;
 
 // 定义组件的 Props 接口
 interface PlayerBarProps {
-  currentSong: Muisc | null;
+  currentMusic: Muisc | null;
   isPlaying: boolean;
   currentTime: number;
   onPlayPause: () => void;
@@ -34,7 +34,7 @@ const formatTime = (timeInSeconds: number): string => {
 };
 
 const PlayerBar: React.FC<PlayerBarProps> = ({
-  currentSong,
+  currentMusic,
   isPlaying,
   currentTime,
   onPlayPause,
@@ -45,7 +45,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
   onClose,
 }) => {
   // 如果没有当前歌曲，不显示播放栏
-  if (!currentSong) {
+  if (!currentMusic) {
     return null;
   }
 
@@ -53,7 +53,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
     if (typeof value !== "number") return "";
     const time =
       (value / 100) *
-      (typeof currentSong.duration === "number" ? currentSong.duration : 0);
+      (typeof currentMusic.duration === "number" ? currentMusic.duration : 0);
     return formatTime(time);
   };
 
@@ -78,14 +78,14 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
               ellipsis
               style={{ maxWidth: "30%", alignContent: "center" }}
             >
-              {currentSong.title} - {currentSong.artist}
+              {currentMusic.title} - {currentMusic.artist}
             </Text>
             <Flex
               flex={1}
               style={{ minWidth: "70%", borderBottom: "1px solid #ffb5b5ff" }}
             >
               <LyricScroller
-                lyricText={currentSong.lyric || ""}
+                lyricText={currentMusic.lyric || ""}
                 currentTime={currentTime}
               />
             </Flex>
@@ -131,8 +131,8 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                 <Slider
                   value={
                     (currentTime /
-                      (typeof currentSong.duration === "number"
-                        ? currentSong.duration
+                      (typeof currentMusic.duration === "number"
+                        ? currentMusic.duration
                         : 1)) *
                     100
                   }
@@ -144,8 +144,8 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                 />
                 <Text style={{ fontSize: "12px", color: "#888" }}>
                   {formatTime(
-                    typeof currentSong.duration === "number"
-                      ? currentSong.duration
+                    typeof currentMusic.duration === "number"
+                      ? currentMusic.duration
                       : 0
                   )}
                 </Text>

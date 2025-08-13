@@ -19,6 +19,6 @@ export interface Muisc extends MusicDetail {
 }
 
 export interface SearchResult {
-  songs: Muisc[];
+  music_list: Muisc[];
   has_more: boolean;
 }

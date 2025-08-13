@@ -71,7 +71,7 @@ export const searchMusic = async (
     }
     if (musicList && musicList.length > 0) {
       try {
-        await invoke('save_music', { songs: musicList }); // 'save_music' 必须与 Rust command 的函数名完全一致
+        await invoke('save_music', { music_list: musicList }); // 'save_music' 必须与 Rust command 的函数名完全一致
         console.log('成功将', musicList.length, '首歌曲保存到本地数据库！');
       } catch (error) {
         console.error('调用 save_music 失败:', error);
@@ -79,7 +79,7 @@ export const searchMusic = async (
     }
 
     return {
-      songs: musicList,
+      music_list: musicList,
       has_more: hasMore,
     };
   } catch (error) {
@@ -88,8 +88,8 @@ export const searchMusic = async (
   }
 };
 
-export const musicDetail = async (song: Muisc): Promise<Muisc> => {
-  const fullDetailUrl = `${BASE_URL}${song.url}`;
+export const musicDetail = async (music: Muisc): Promise<Muisc> => {
+  const fullDetailUrl = `${BASE_URL}${music.url}`;
 
   try {
     // 步骤 1: 获取详情页的HTML文本
@@ -167,8 +167,8 @@ export const musicDetail = async (song: Muisc): Promise<Muisc> => {
     const play_url = apiData.data.url;
     console.log(`(前端爬虫) 步骤4: 成功获取到直链 -> ${play_url}`);
 
-    const updatedSong: Muisc = {
-      ...song,
+    const updatedMusic: Muisc = {
+      ...music,
       cover_url,
       lyric,
       // duration,
@@ -181,23 +181,23 @@ export const musicDetail = async (song: Muisc): Promise<Muisc> => {
     try {
       // 构建与 Rust `UpdateDetailPayload` 完全匹配的对象
       const payload = {
-        song_id: updatedSong.song_id,
+        song_id: updatedMusic.song_id,
         // 所有详情字段直接放在顶层，因为 Rust 端有 #[serde(flatten)]
-        lyric: updatedSong.lyric,
-        cover_url: updatedSong.cover_url,
-        play_url: updatedSong.play_url,
-        download_mp3: updatedSong.download_mp3,
-        download_kuake: updatedSong.download_kuake,
-        download_mp3_id: updatedSong.download_mp3_id,
+        lyric: updatedMusic.lyric,
+        cover_url: updatedMusic.cover_url,
+        play_url: updatedMusic.play_url,
+        download_mp3: updatedMusic.download_mp3,
+        download_kuake: updatedMusic.download_kuake,
+        download_mp3_id: updatedMusic.download_mp3_id,
       };
       // 注意 invoke 的第二个参数结构
       await invoke('update_music_detail', { payload: payload });
-      console.log(`(后端交互) 成功更新歌曲详情到数据库: ${updatedSong.title}`);
+      console.log(`(后端交互) 成功更新歌曲详情到数据库: ${updatedMusic.title}`);
     } catch (dbError) {
       console.error('调用 update_music_detail 失败:', dbError);
     }
 
-    return updatedSong;
+    return updatedMusic;
   } catch (error) {
     console.error("获取歌曲详情失败:", error);
     throw error;

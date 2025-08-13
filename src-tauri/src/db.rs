@@ -47,7 +47,7 @@ pub async fn init_db_pool(app_handle: &AppHandle) -> Result<DbPool, Box<dyn std:
     Ok(pool)
 }
 
-pub async fn save_music(pool: &DbPool, songs: Vec<Music>) -> Result<(), sqlx::Error> {
+pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
     let sql = r#"
@@ -63,19 +63,19 @@ pub async fn save_music(pool: &DbPool, songs: Vec<Music>) -> Result<(), sqlx::Er
             play_url = excluded.play_url
     "#;
 
-    for song in songs {
+    for music in music_list {
         sqlx::query(sql)
-            .bind(&song.song_id)
-            .bind(&song.title)
-            .bind(&song.artist)
-            .bind(&song.url)
-            .bind(&song.lyric)
-            .bind(&song.download_mp3)
-            .bind(&song.download_kuake)
-            .bind(&song.cover_url)
-            .bind(song.duration_secs)
-            .bind(&song.download_mp3_id)
-            .bind(&song.play_url)
+            .bind(&music.song_id)
+            .bind(&music.title)
+            .bind(&music.artist)
+            .bind(&music.url)
+            .bind(&music.lyric)
+            .bind(&music.download_mp3)
+            .bind(&music.download_kuake)
+            .bind(&music.cover_url)
+            .bind(music.duration_secs)
+            .bind(&music.download_mp3_id)
+            .bind(&music.play_url)
             .execute(&mut *tx)
             .await?;
     }
@@ -129,7 +129,7 @@ pub struct ToggleMusicPayload {
     pub song_ids: Vec<String>,
 }
 
-pub async fn toggle_songs_in_playlist(
+pub async fn toggle_music_in_playlist(
     pool: &DbPool,
     payload: ToggleMusicPayload,
 ) -> Result<(), sqlx::Error> {

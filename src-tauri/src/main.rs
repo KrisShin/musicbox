@@ -12,9 +12,9 @@ use tauri::Manager;
 // }
 
 #[tauri::command]
-async fn save_music(songs: Vec<Music>, state: tauri::State<'_, DbPool>) -> Result<(), String> {
+async fn save_music(music_list: Vec<Music>, state: tauri::State<'_, DbPool>) -> Result<(), String> {
     let pool = state.inner();
-    db::save_music(pool, songs).await.map_err(|e| e.to_string())
+    db::save_music(pool, music_list).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -28,11 +28,11 @@ async fn update_music_detail(
 }
 
 #[tauri::command]
-async fn toggle_songs_in_playlist(
+async fn toggle_music_in_playlist(
     payload: ToggleMusicPayload,
     state: tauri::State<'_, DbPool>,
 ) -> Result<(), String> {
-    db::toggle_songs_in_playlist(state.inner(), payload)
+    db::toggle_music_in_playlist(state.inner(), payload)
         .await
         .map_err(|e| e.to_string())
 }
@@ -100,7 +100,7 @@ fn main() {
             // some_database_operation,
             save_music,
             update_music_detail,
-            toggle_songs_in_playlist,
+            toggle_music_in_playlist,
             create_playlist,
             delete_playlist,
             rename_playlist,

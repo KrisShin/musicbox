@@ -11,7 +11,7 @@ message.config({
 })
 
 
-const primaryThemeColor = "#F08080";
+export const primaryThemeColor = "#F08080";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
