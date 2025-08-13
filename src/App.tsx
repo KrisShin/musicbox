@@ -10,10 +10,15 @@ import {
   Image,
   Flex,
   message,
+  Popover,
 } from "antd";
-import { PlayCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import PlayerBar from "./components/PlayerBar";
-import type { Muisc } from "./types";
+import type { Music, PlaylistInfo } from "./types";
 import { searchMusic, musicDetail } from "./crawler";
 import { downloadDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -21,18 +26,20 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import "./App.css";
 import { primaryThemeColor } from "./main";
+import { invoke } from "@tauri-apps/api/core";
 const { Header, Content } = Layout;
 const { Search } = Input;
 const { Title, Text } = Typography;
+
 function App() {
   const [loading, setLoading] = useState(false);
   const [currentKeyword, setCurrentKeyword] = useState("热门");
   const [searched, setSearched] = useState(false);
-  const [musicList, setMusicList] = useState<Muisc[]>([]);
+  const [musicList, setMusicList] = useState<Music[]>([]);
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState(false);
   const [playingMusicIndex, setPlayingMusicIndex] = useState(-1);
-  const [currentMusic, setCurrentMusic] = useState<Muisc | null>(null);
+  const [currentMusic, setCurrentMusic] = useState<Music | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -51,8 +58,8 @@ function App() {
       const result = await searchMusic(keyword, currentPage);
       if (result.music_list.length === 0) {
         message.warning("未找到相关歌曲，请尝试其他关键词");
-        setHasMore(false)
-        return
+        setHasMore(false);
+        return;
       }
       keyword == currentKeyword
         ? setMusicList(musicList.concat(result.music_list))
@@ -65,7 +72,7 @@ function App() {
       setLoading(false);
     }
   };
-  const handleDetail = async (music: Muisc, index: number) => {
+  const handleDetail = async (music: Music, index: number) => {
     setPlayingMusicIndex(index);
     message.info(`获取信息中: ${music.title}, 请稍候`);
     if (!music.url) return;
@@ -78,7 +85,7 @@ function App() {
     }
     message.destroy("play");
   };
-  const handlePlay = (music: Muisc) => {
+  const handlePlay = (music: Music) => {
     if (currentMusic?.song_id === music.song_id) {
       handlePlayPause();
     } else {
@@ -184,12 +191,134 @@ function App() {
     }
   };
 
-  const handleAdd2Playlist = async (music: Muisc) => { }
+  const handleAdd2Playlist = async (music: Music, playlistId: number) => {
+    try {
+      const payload = {
+        playlistId: playlistId,
+        songIds: [music.song_id], // 我们的后端接口接收的是一个数组
+      };
+
+      await invoke("toggle_music_in_playlist", { payload });
+
+      // 给予用户即时反馈
+      message.success(`“${music.title}” 操作成功!`);
+    } catch (error) {
+      console.error(
+        `操作歌曲 ${music.title} 到歌单 ${playlistId} 失败:`,
+        error
+      );
+      message.error("操作失败，请稍后再试");
+    }
+  };
+
+  const AddToPlaylistButton = ({
+    song,
+    primaryThemeColor,
+  }: {
+    song: Music;
+    primaryThemeColor: string;
+  }) => {
+    // --- State ---
+    const [open, setOpen] = useState(false); // 控制 Popover 的显示与隐藏
+    const [loading, setLoading] = useState(false); // 控制加载状态
+    const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]); // 存储歌单列表
+
+    // --- Functions ---
+
+    // Popover 显示状态改变时的回调
+    const handleOpenChange = async (newOpen: boolean) => {
+      setOpen(newOpen);
+      // 只有在准备打开 Popover 且列表为空时才去获取数据
+      if (newOpen && playlists.length === 0) {
+        setLoading(true);
+        try {
+          // 调用我们强大的后端接口，传入 song_id 来获取 is_in 状态
+          const result: PlaylistInfo[] = await invoke("get_all_playlists", {
+            songId: song.song_id,
+          });
+          setPlaylists(result);
+        } catch (error) {
+          console.error("获取歌单列表失败:", error);
+          message.error("无法加载歌单列表");
+          setOpen(false); // 加载失败时关闭 Popover
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    // 点击某个歌单项时的处理函数
+    const onPlaylistClick = (playlist: PlaylistInfo) => {
+      // 调用我们之前定义的通用函数
+      handleAdd2Playlist(song, playlist.id);
+      // 操作后立即关闭 Popover
+      setOpen(false);
+    };
+
+    // --- Render ---
+
+    // 这是 Popover 内部要渲染的内容
+    const playlistContent = (
+      <div style={{ maxHeight: 200, overflowY: "auto" }}>
+        {loading ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+          >
+            <Spin />
+          </div>
+        ) : (
+          <List
+            dataSource={playlists}
+            renderItem={(playlist) => (
+              <List.Item
+                onClick={() => onPlaylistClick(playlist)}
+                style={{ cursor: "pointer" }}
+                actions={[
+                  // 如果歌曲已在歌单中，显示一个√
+                  playlist.is_in && (
+                    <CheckOutlined style={{ color: primaryThemeColor }} />
+                  ),
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Text style={{ fontSize: "14px" }}>{playlist.name}</Text>
+                  }
+                  description={`${playlist.song_count} 首`}
+                />
+              </List.Item>
+            )}
+          />
+        )}
+      </div>
+    );
+
+    return (
+      <Popover
+        content={playlistContent}
+        title="添加到歌单"
+        trigger="click"
+        open={open}
+        onOpenChange={handleOpenChange}
+        placement="left" // 让菜单在左侧弹出
+      >
+        <Button
+          type="text"
+          icon={<PlusOutlined style={{ color: primaryThemeColor }} />}
+        />
+      </Popover>
+    );
+  };
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const handleMetadataLoaded = () => {
-      currentMusic && setCurrentMusic({ ...currentMusic, duration: audio.duration });
+      currentMusic &&
+        setCurrentMusic({ ...currentMusic, duration: audio.duration });
       audio.play();
       setIsPlaying(true);
     };
@@ -210,7 +339,7 @@ function App() {
   }, [currentMusic]);
   useEffect(() => {
     // handleSearch('热门');
-  }, [])
+  }, []);
   return (
     <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
       <div
@@ -287,10 +416,9 @@ function App() {
                           icon={<PlayCircleOutlined />}
                           onClick={() => handleDetail(item, index)}
                         />,
-                        <Button
-                          type="text"
-                          icon={<PlusOutlined style={{ color: primaryThemeColor }} />}
-                          onClick={() => handleAdd2Playlist(item)}
+                        <AddToPlaylistButton
+                          song={item}
+                          primaryThemeColor={primaryThemeColor} // 将主题色传入
                         />,
                       ]}
                     >

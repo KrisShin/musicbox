@@ -14,7 +14,9 @@ use tauri::Manager;
 #[tauri::command]
 async fn save_music(music_list: Vec<Music>, state: tauri::State<'_, DbPool>) -> Result<(), String> {
     let pool = state.inner();
-    db::save_music(pool, music_list).await.map_err(|e| e.to_string())
+    db::save_music(pool, music_list)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -63,8 +65,11 @@ async fn rename_playlist(
 }
 
 #[tauri::command]
-async fn get_all_playlists(state: tauri::State<'_, DbPool>) -> Result<Vec<PlaylistInfo>, String> {
-    db::get_all_playlists(state.inner())
+async fn get_all_playlists(
+    song_id: Option<String>,
+    state: tauri::State<'_, DbPool>,
+) -> Result<Vec<PlaylistInfo>, String> {
+    db::get_all_playlists(state.inner(), song_id)
         .await
         .map_err(|e| e.to_string())
 }

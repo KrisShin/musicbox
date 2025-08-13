@@ -2,7 +2,7 @@
 
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { invoke } from '@tauri-apps/api/core';
-import { Muisc, SearchResult } from "./types"; // 确保类型定义正确
+import { Music, SearchResult } from "./types"; // 确保类型定义正确
 
 const parser = new DOMParser();
 
@@ -31,7 +31,7 @@ export const searchMusic = async (
     // 直接选取所有包含歌曲信息的 <a> 标签
     const linkElements = doc.querySelectorAll("a.music-link");
 
-    const musicList: Muisc[] = [];
+    const musicList: Music[] = [];
 
     linkElements.forEach((link) => {
       const title = link.querySelector("span.music-title > span")?.textContent;
@@ -71,7 +71,7 @@ export const searchMusic = async (
     }
     if (musicList && musicList.length > 0) {
       try {
-        await invoke('save_music', { music_list: musicList }); // 'save_music' 必须与 Rust command 的函数名完全一致
+        await invoke('save_music', { musicList }); // 'save_music' 必须与 Rust command 的函数名完全一致
         console.log('成功将', musicList.length, '首歌曲保存到本地数据库！');
       } catch (error) {
         console.error('调用 save_music 失败:', error);
@@ -88,7 +88,7 @@ export const searchMusic = async (
   }
 };
 
-export const musicDetail = async (music: Muisc): Promise<Muisc> => {
+export const musicDetail = async (music: Music): Promise<Music> => {
   const fullDetailUrl = `${BASE_URL}${music.url}`;
 
   try {
@@ -167,7 +167,7 @@ export const musicDetail = async (music: Muisc): Promise<Muisc> => {
     const play_url = apiData.data.url;
     console.log(`(前端爬虫) 步骤4: 成功获取到直链 -> ${play_url}`);
 
-    const updatedMusic: Muisc = {
+    const updatedMusic: Music = {
       ...music,
       cover_url,
       lyric,

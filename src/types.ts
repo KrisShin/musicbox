@@ -10,7 +10,7 @@ export interface MusicDetail {
   play_url?: string;
 }
 
-export interface Muisc extends MusicDetail {
+export interface Music extends MusicDetail {
   song_id: string;
   title: string;
   artist: string;
@@ -19,6 +19,14 @@ export interface Muisc extends MusicDetail {
 }
 
 export interface SearchResult {
-  music_list: Muisc[];
+  music_list: Music[];
   has_more: boolean;
+}
+
+export interface PlaylistInfo {
+  id: number;
+  name: string;
+  cover_path: string;
+  song_count: number;
+  is_in: boolean;
 }
