@@ -1,14 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { ConfigProvider, message } from "antd";
-
-message.config({
-  top: 500,
-  duration: 3,
-  maxCount: 3,
-  rtl: true,
-})
+import { ConfigProvider } from "antd";
 
 
 export const primaryThemeColor = "#F08080";
@@ -30,9 +23,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             handleColor: primaryThemeColor,
             trackBg: primaryThemeColor
           },
-          Message: {
-            colorPrimary: primaryThemeColor,
-          }
+        },
+      }}
+      message={{
+        style: {
+          marginTop: "70vh",
         },
       }}
     >

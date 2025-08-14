@@ -44,6 +44,17 @@ pub async fn init_db_pool(app_handle: &AppHandle) -> Result<DbPool, Box<dyn std:
 
     MIGRATOR.run(&pool).await?;
 
+    let playlist_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM playlist")
+        .fetch_one(&pool)
+        .await?;
+
+    // 如果没有任何歌单，就创建一个默认的
+    if playlist_count.0 == 0 {
+        sqlx::query("INSERT INTO playlist (name) VALUES ('我的歌单')")
+            .execute(&pool)
+            .await?;
+    }
+
     Ok(pool)
 }
 
@@ -138,19 +149,12 @@ pub async fn toggle_music_in_playlist(
     let playlist_id = match payload.playlist_id {
         Some(id) => id,
         None => {
-            let first_playlist: Option<(i64,)> =
-                sqlx::query_as("SELECT id FROM playlists ORDER BY created_at LIMIT 1")
-                    .fetch_optional(&mut *tx)
+            // 因为 init_db_pool 保证了歌单一定存在，我们可以安全地直接获取第一个
+            let (id,): (i64,) =
+                sqlx::query_as("SELECT id FROM playlist ORDER BY created_at LIMIT 1")
+                    .fetch_one(&mut *tx) // 使用 fetch_one，因为它保证能找到一个
                     .await?;
-
-            if let Some((id,)) = first_playlist {
-                id
-            } else {
-                sqlx::query("INSERT INTO playlists (name) VALUES ('我的歌单')")
-                    .execute(&mut *tx)
-                    .await?
-                    .last_insert_rowid()
-            }
+            id
         }
     };
 
@@ -188,20 +192,20 @@ pub async fn toggle_music_in_playlist(
     }
 
     let playlist_cover: (Option<String>,) =
-        sqlx::query_as("SELECT cover_path FROM playlists WHERE id = ?")
+        sqlx::query_as("SELECT cover_path FROM playlist WHERE id = ?")
             .bind(playlist_id)
             .fetch_one(&mut *tx)
             .await?;
 
     if playlist_cover.0.is_none() && !payload.song_ids.is_empty() {
         let first_song_cover: Option<(Option<String>,)> =
-            sqlx::query_as("SELECT cover_url FROM songs WHERE song_id = ?")
+            sqlx::query_as("SELECT cover_url FROM music WHERE song_id = ?")
                 .bind(&payload.song_ids[0])
                 .fetch_optional(&mut *tx)
                 .await?;
 
         if let Some((Some(cover_url),)) = first_song_cover {
-            sqlx::query("UPDATE playlists SET cover_path = ? WHERE id = ?")
+            sqlx::query("UPDATE playlist SET cover_path = ? WHERE id = ?")
                 .bind(cover_url)
                 .bind(playlist_id)
                 .execute(&mut *tx)
@@ -215,7 +219,7 @@ pub async fn toggle_music_in_playlist(
 }
 
 pub async fn create_playlist(pool: &DbPool, name: String) -> Result<i64, sqlx::Error> {
-    let result = sqlx::query("INSERT INTO playlists (name) VALUES (?)")
+    let result = sqlx::query("INSERT INTO playlist (name) VALUES (?)")
         .bind(name)
         .execute(pool)
         .await?;
@@ -224,7 +228,7 @@ pub async fn create_playlist(pool: &DbPool, name: String) -> Result<i64, sqlx::E
 }
 
 pub async fn delete_playlist(pool: &DbPool, playlist_id: i64) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM playlists WHERE id = ?")
+    sqlx::query("DELETE FROM playlist WHERE id = ?")
         .bind(playlist_id)
         .execute(pool)
         .await?;
@@ -237,7 +241,7 @@ pub async fn rename_playlist(
     playlist_id: i64,
     new_name: String,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE playlists SET name = ? WHERE id = ?")
+    sqlx::query("UPDATE playlist SET name = ? WHERE id = ?")
         .bind(new_name)
         .bind(playlist_id)
         .execute(pool)

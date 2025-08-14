@@ -9,8 +9,9 @@ import {
   Button,
   Image,
   Flex,
-  message,
   Popover,
+  message,
+  Avatar,
 } from "antd";
 import {
   CheckOutlined,
@@ -32,6 +33,8 @@ const { Search } = Input;
 const { Title, Text } = Typography;
 
 function App() {
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [loading, setLoading] = useState(false);
   const [currentKeyword, setCurrentKeyword] = useState("热门");
   const [searched, setSearched] = useState(false);
@@ -57,7 +60,7 @@ function App() {
     try {
       const result = await searchMusic(keyword, currentPage);
       if (result.music_list.length === 0) {
-        message.warning("未找到相关歌曲，请尝试其他关键词");
+        messageApi.warning("未找到相关歌曲，请尝试其他关键词");
         setHasMore(false);
         return;
       }
@@ -67,14 +70,14 @@ function App() {
       setHasMore(result.has_more);
       setPage(currentPage);
     } catch (error: any) {
-      message.error(error.message);
+      messageApi.error(error.message);
     } finally {
       setLoading(false);
     }
   };
   const handleDetail = async (music: Music, index: number) => {
     setPlayingMusicIndex(index);
-    message.info(`获取信息中: ${music.title}, 请稍候`);
+    messageApi.info(`获取信息中: ${music.title}, 请稍候`);
     if (!music.url) return;
     const result = await musicDetail(music);
     setCurrentMusic(result);
@@ -83,21 +86,21 @@ function App() {
       audioRef.current.src = result.play_url;
       audioRef.current.play();
     }
-    message.destroy("play");
+    messageApi.destroy("play");
   };
   const handlePlay = (music: Music) => {
     if (currentMusic?.song_id === music.song_id) {
       handlePlayPause();
     } else {
       setCurrentMusic(music);
-      if (audioRef.current && music.play_url) {
+      if (audioRef.current && !audioRef.current.played && music.play_url) {
         audioRef.current.src = music.url;
         audioRef.current
           .play()
           .then(() => setIsPlaying(true))
           .catch((e) => console.error("播放失败:", e));
       }
-      message.success(`开始播放: ${music.title}`);
+      messageApi.success(`开始播放: ${music.title}`);
     }
   };
   const handlePlayPause = () => {
@@ -136,14 +139,14 @@ function App() {
   const handleSave = async () => {
     const music = currentMusic;
     const messageKey = `download-${music?.song_id}`;
-    message.loading({
+    messageApi.loading({
       content: `《${music?.title}》: 解析链接...`,
       key: messageKey,
       duration: 0,
     });
     try {
       if (!music?.play_url) throw new Error("未能获取下载链接");
-      message.loading({
+      messageApi.loading({
         content: `《${music.title}》: 选择保存位置...`,
         key: messageKey,
         duration: 0,
@@ -156,10 +159,10 @@ function App() {
         filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
       });
       if (!filePath) {
-        message.destroy(messageKey);
+        messageApi.destroy(messageKey);
         return;
       }
-      message.loading({
+      messageApi.loading({
         content: `《${music.title}》: 下载中...`,
         key: messageKey,
         duration: 0,
@@ -176,13 +179,13 @@ function App() {
       const arrayBuffer = await response.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       await writeFile(filePath, uint8Array);
-      message.success({
+      messageApi.success({
         content: `《${music.title}》已成功保存！`,
         key: messageKey,
         duration: 3,
       });
     } catch (error: any) {
-      message.error({
+      messageApi.error({
         content: `下载失败: ${error.message || "未知错误"}`,
         key: messageKey,
         duration: 5,
@@ -194,20 +197,20 @@ function App() {
   const handleAdd2Playlist = async (music: Music, playlistId: number) => {
     try {
       const payload = {
-        playlistId: playlistId,
-        songIds: [music.song_id], // 我们的后端接口接收的是一个数组
+        playlist_id: playlistId,
+        song_ids: [music.song_id], // 我们的后端接口接收的是一个数组
       };
 
       await invoke("toggle_music_in_playlist", { payload });
 
       // 给予用户即时反馈
-      message.success(`“${music.title}” 操作成功!`);
+      messageApi.success(`“${music.title}” 操作成功!`);
     } catch (error) {
       console.error(
         `操作歌曲 ${music.title} 到歌单 ${playlistId} 失败:`,
         error
       );
-      message.error("操作失败，请稍后再试");
+      messageApi.error("操作失败，请稍后再试");
     }
   };
 
@@ -229,7 +232,7 @@ function App() {
     const handleOpenChange = async (newOpen: boolean) => {
       setOpen(newOpen);
       // 只有在准备打开 Popover 且列表为空时才去获取数据
-      if (newOpen && playlists.length === 0) {
+      if (newOpen) {
         setLoading(true);
         try {
           // 调用我们强大的后端接口，传入 song_id 来获取 is_in 状态
@@ -239,7 +242,7 @@ function App() {
           setPlaylists(result);
         } catch (error) {
           console.error("获取歌单列表失败:", error);
-          message.error("无法加载歌单列表");
+          messageApi.error("无法加载歌单列表");
           setOpen(false); // 加载失败时关闭 Popover
         } finally {
           setLoading(false);
@@ -272,6 +275,8 @@ function App() {
           </div>
         ) : (
           <List
+            size="small"
+            bordered
             dataSource={playlists}
             renderItem={(playlist) => (
               <List.Item
@@ -284,12 +289,10 @@ function App() {
                   ),
                 ]}
               >
-                <List.Item.Meta
-                  title={
-                    <Text style={{ fontSize: "14px" }}>{playlist.name}</Text>
-                  }
-                  description={`${playlist.song_count} 首`}
-                />
+                <Flex align="center">
+                  <Avatar size={22} shape="square" src={`${playlist.cover_path}`} />
+                  <Text style={{ fontSize: "14px" }}>{playlist.name}({playlist.song_count})</Text>
+                </Flex>
               </List.Item>
             )}
           />
@@ -342,6 +345,7 @@ function App() {
   }, []);
   return (
     <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
+      {contextHolder}
       <div
         style={{
           position: "sticky",
@@ -411,14 +415,14 @@ function App() {
                   renderItem={(item, index) => (
                     <List.Item
                       actions={[
+                        <AddToPlaylistButton
+                          song={item}
+                          primaryThemeColor={primaryThemeColor} // 将主题色传入
+                        />,
                         <Button
                           type="primary"
                           icon={<PlayCircleOutlined />}
                           onClick={() => handleDetail(item, index)}
-                        />,
-                        <AddToPlaylistButton
-                          song={item}
-                          primaryThemeColor={primaryThemeColor} // 将主题色传入
                         />,
                       ]}
                     >
