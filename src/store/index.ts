@@ -36,6 +36,10 @@ interface AppState {
   playingMusicIndex: number;
   currentMusic: Music | null;
   isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+
+
   // Actions
   handleSearch: (value: string) => Promise<void>;
   handleDetail: (music: Music, index: number) => Promise<void>;
@@ -45,6 +49,8 @@ interface AppState {
   handlePrev: () => void;
   handleSave: () => void;
   handleClose: () => void;
+  setCurrentTime: (time: number) => void;
+  setDuration: (duration: number) => void;
 }
 
 // 3. 创建 Zustand store
@@ -61,6 +67,9 @@ export const useAppStore = create<AppState>()(
       playingMusicIndex: -1,
       currentMusic: null,
       isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+
       // --- Actions ---
       handleSearch: async (value) => {
         const keyword = value.trim();
@@ -145,10 +154,11 @@ export const useAppStore = create<AppState>()(
       handleNext: () => get()._playIndexMusic(get().playingMusicIndex + 1),
       handlePrev: () => get()._playIndexMusic(get().playingMusicIndex - 1),
 
-
       handleClose: () => {
         set({ currentMusic: null, isPlaying: false, playingMusicIndex: -1 });
       },
+      setCurrentTime: (time) => set({ currentTime: time }),
+      setDuration: (duration) => set({ duration: duration }),
     }),
     {
       // 4. 配置 persist 中间件
