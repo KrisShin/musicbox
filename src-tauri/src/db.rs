@@ -331,3 +331,33 @@ pub async fn get_music_by_playlist_id(
 
     Ok(songs)
 }
+
+
+pub async fn save_app_setting(pool: &DbPool, key: String, value: String) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+            INSERT INTO app_setting (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value
+        "#,
+    )
+    .bind(key)
+    .bind(value)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// 通用函数：根据 key 获取一个设置项的值
+pub async fn get_app_setting(pool: &DbPool, key: String) -> Result<Option<String>, sqlx::Error> {
+    let result = sqlx::query_as::<_, (String,)>(
+        "SELECT value FROM app_setting WHERE key = ?"
+    )
+    .bind(key)
+    .fetch_optional(pool)
+    .await?;
+    
+    // .map 将 Option<(String,)> 转换为 Option<String>
+    Ok(result.map(|(value,)| value))
+}

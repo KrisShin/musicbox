@@ -7,7 +7,7 @@ import { Music } from "../../types";
 const { Text } = Typography;
 
 const MusicListItem = memo(({ item, index, primaryThemeColor, handleDetail }: { item: Music, index: number, primaryThemeColor: string, handleDetail: Function }) => {
-    console.log(`Rendering item: ${item.title}`); // 您可以加上这个来观察渲染次数
+    // console.log(`Rendering item: ${item.title}`); // 您可以加上这个来观察渲染次数
 
     return (
         <List.Item

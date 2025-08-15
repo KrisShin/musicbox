@@ -83,6 +83,27 @@ async fn get_music_by_playlist_id(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+async fn save_app_setting(
+    key: String,
+    value: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    db::save_app_setting(state.inner(), key, value)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_app_setting(
+    key: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<Option<String>, String> {
+    db::get_app_setting(state.inner(), key)
+        .await
+        .map_err(|e| e.to_string())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
@@ -110,7 +131,9 @@ fn main() {
             delete_playlist,
             rename_playlist,
             get_all_playlists,
-            get_music_by_playlist_id
+            get_music_by_playlist_id,
+            save_app_setting,
+            get_app_setting
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
