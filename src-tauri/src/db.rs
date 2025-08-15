@@ -309,7 +309,7 @@ pub async fn get_music_by_playlist_id(
     pool: &DbPool,
     playlist_id: i64,
 ) -> Result<Vec<PlaylistMusic>, sqlx::Error> {
-    let songs = sqlx::query_as::<_, PlaylistMusic>(
+    let music_list = sqlx::query_as::<_, PlaylistMusic>(
         r#"
             SELECT
                 s.*, -- s.* 会被 sqlx::FromRow 自动映射到拥有 #[sqlx(flatten)] 的字段
@@ -318,7 +318,7 @@ pub async fn get_music_by_playlist_id(
             FROM
                 playlist_music ps
             INNER JOIN
-                songs s ON ps.song_id = s.song_id
+                music s ON ps.song_id = s.song_id
             WHERE
                 ps.playlist_id = ?
             ORDER BY
@@ -329,11 +329,14 @@ pub async fn get_music_by_playlist_id(
     .fetch_all(pool)
     .await?;
 
-    Ok(songs)
+    Ok(music_list)
 }
 
-
-pub async fn save_app_setting(pool: &DbPool, key: String, value: String) -> Result<(), sqlx::Error> {
+pub async fn save_app_setting(
+    pool: &DbPool,
+    key: String,
+    value: String,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
             INSERT INTO app_setting (key, value)
@@ -351,13 +354,11 @@ pub async fn save_app_setting(pool: &DbPool, key: String, value: String) -> Resu
 
 /// 通用函数：根据 key 获取一个设置项的值
 pub async fn get_app_setting(pool: &DbPool, key: String) -> Result<Option<String>, sqlx::Error> {
-    let result = sqlx::query_as::<_, (String,)>(
-        "SELECT value FROM app_setting WHERE key = ?"
-    )
-    .bind(key)
-    .fetch_optional(pool)
-    .await?;
-    
+    let result = sqlx::query_as::<_, (String,)>("SELECT value FROM app_setting WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
     // .map 将 Option<(String,)> 转换为 Option<String>
     Ok(result.map(|(value,)| value))
 }

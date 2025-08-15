@@ -22,8 +22,9 @@ const SearchPage: React.FC = () => {
 
   const onSearch = async (keyword: string) => {
     try {
+      messageApi.success(`搜索 "${keyword}" 中...`, 1.5);
       await handleSearch(keyword).then(() => {
-        messageApi.success(`搜索 "${keyword}" 成功, 共找到 ${musicList.length} 首歌曲`);
+        messageApi.success(`搜索 "${keyword}" 成功`);
       });
     } catch (error: any) {
       // 在这里捕获 store 抛出的错误，并调用 messageApi
@@ -78,7 +79,7 @@ const SearchPage: React.FC = () => {
             searched && <Empty description="未能找到相关歌曲，换个关键词试试？" />
           )}
           {hasMore && (
-            <Flex justify="center" style={{ padding: '20px' }}>
+            <Flex justify="center" style={{ padding: '5px 0' }}>
               <Button
                 type="primary"
                 loading={loading}

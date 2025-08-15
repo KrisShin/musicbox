@@ -71,7 +71,7 @@ export const useAppStore = create<AppState>()(
       duration: 0,
 
       // --- Actions ---
-      handleSearch: async (value) => {
+      handleSearch: async (value) =>  {
         const keyword = value.trim();
         if (!keyword) return;
 

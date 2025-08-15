@@ -78,7 +78,7 @@ const LyricScroller: React.FC<LyricScrollerProps> = ({
     <div
       ref={lyricContainerRef}
       style={{
-        height: "30px", // 歌词区域高度，可根据需要调整
+        height: "50vh", // 歌词区域高度，可根据需要调整
         overflowY: "hidden", // 隐藏滚动条
         textAlign: "center",
         color: "#666",
@@ -93,8 +93,8 @@ const LyricScroller: React.FC<LyricScrollerProps> = ({
             padding: "4px 0",
             transition: "color 0.3s, font-size 0.3s",
             // 高亮当前行
-            color: index === currentLineIndex ? "#e87997" : "#888",
-            fontSize: index === currentLineIndex ? "16px" : "14px",
+            color: index === currentLineIndex ? "#e87997" : "#5a5a5aff",
+            fontSize: index === currentLineIndex ? "17px" : "14px",
             fontWeight: index === currentLineIndex ? "bold" : "normal",
           }}
         >

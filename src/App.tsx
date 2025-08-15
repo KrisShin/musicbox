@@ -36,7 +36,7 @@ const AppHeader = () => (
 const App = () => {
   const [activeTab, setActiveTab] = useState('search');
   const {
-    currentMusic, isPlaying, handlePlayPause, handleSave, handleNext, handlePrev, handleClose,
+    currentMusic, isPlaying, handlePlayPause, handleNext, handleClose,
     setCurrentTime, // 获取新的 action
     setDuration,   // 获取新的 action
   } = useAppStore();
@@ -143,7 +143,7 @@ const App = () => {
           flex: 1, // 关键：让这个区域占据所有剩余的可用空间
           overflowY: 'auto', // 关键：只在这个区域内部启用垂直滚动
           padding: '6px',
-          paddingBottom: "60px", // 保留您的逻辑，防止内容被底部栏遮挡
+          paddingBottom: "76px", // 保留您的逻辑，防止内容被底部栏遮挡
           transition: 'padding-bottom 0.3s',
           scrollbarWidth: 'none', // 使滚动条更细
         }}
