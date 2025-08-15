@@ -22,21 +22,23 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
             bottom: 0,
             left: 0,
             right: 0,
-            background: '#fff',
-            padding: '8px 0',
-            borderTop: '1px solid #f0f0f0',
+            background: '#fff5f5',
+            borderRadius: "15px 15px 0 0",
+            padding: "8px 14px 28px 14px",
+            borderTop: "5px solid #ffb5b5ff",
             zIndex: 10,
         }}>
             <Flex justify="space-around">
                 {navItems.map(item => (
                     <Button
+                        size='large'
                         key={item.key}
                         type={activeTab === item.key ? 'primary' : 'text'}
                         icon={item.icon}
                         onClick={() => onTabChange(item.key)}
-                        style={{ flexDirection: 'column', height: 'auto', padding: '4px 8px' }}
+                        style={{ flexDirection: 'column', height: 'auto', padding: '6px 10px' }}
                     >
-                        <span style={{ fontSize: '12px' }}>{item.label}</span>
+                        {/* <span style={{ fontSize: '12px' }}>{item.label}</span> */}
                     </Button>
                 ))}
             </Flex>

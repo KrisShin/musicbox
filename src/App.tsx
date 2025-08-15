@@ -4,9 +4,10 @@ import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
 import BottomNav from './components/BottomNav';
-import PlayerBar from './components/PlayerBar';
 import './App.css';
 import { useAppStore } from './store';
+import { Content } from 'antd/es/layout/layout';
+import FloatPlayer from './components/FloatPlayer';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -24,7 +25,7 @@ const AppHeader = () => (
       }}
     >
       <Flex align="end" gap={1}>
-        <Image src="/header_icon.png" preview={false} width={25} height={25} />
+        <Image src="/header_icon.png" preview={false} wrapperStyle={{ display: 'inline-flex', height: '25px' }} width='25px' />
         <Title level={3} style={{ margin: 0, color: "#333333", lineHeight: 1 }}>MusicBox</Title>
       </Flex>
     </Header>
@@ -36,6 +37,8 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('search');
   const {
     currentMusic, isPlaying, handlePlayPause, handleSave, handleNext, handlePrev, handleClose,
+    setCurrentTime, // 获取新的 action
+    setDuration,   // 获取新的 action
   } = useAppStore();
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -72,6 +75,24 @@ const App = () => {
     }
   }, [currentMusic, isPlaying]); // 同时监听歌曲和播放状态的变化
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onDurationChange = () => setDuration(audio.duration);
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('loadedmetadata', onDurationChange);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('loadedmetadata', onDurationChange);
+    };
+  }, [setCurrentTime, setDuration]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'search':
@@ -79,13 +100,11 @@ const App = () => {
       case 'playlist':
         return <PlaylistPage />;
       case 'player':
-        return <PlayerPage />;
+        return <PlayerPage audioRef={audioRef} />;
       default:
         return <SearchPage />;
     }
   };
-
-  const contentPaddingBottom = currentMusic ? "110px" : "70px";
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -113,26 +132,33 @@ const App = () => {
   }, [currentMusic, handleNext]);
 
   return (
-    <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
+    // 1. [核心改动] 将根 Layout 设置为固定屏幕高度的 Flex 容器
+    <Layout style={{ height: "100vh", display: 'flex', flexDirection: 'column', backgroundColor: "#fcf0f0ff" }}>
+      {/* Header 部分不变，它占据固定高度 */}
       <AppHeader />
 
-      {/* 动态计算 Content 的 paddingBottom */}
-      <div style={{ paddingBottom: contentPaddingBottom, transition: 'padding-bottom 0.3s' }}>
+      {/* 2. [核心改动] 使用 Antd 的 Content 组件作为弹性滚动区域 */}
+      <Content
+        style={{
+          flex: 1, // 关键：让这个区域占据所有剩余的可用空间
+          overflowY: 'auto', // 关键：只在这个区域内部启用垂直滚动
+          padding: '6px',
+          paddingBottom: "60px", // 保留您的逻辑，防止内容被底部栏遮挡
+          transition: 'padding-bottom 0.3s',
+          scrollbarWidth: 'none', // 使滚动条更细
+        }}
+      >
         {renderContent()}
-      </div>
+      </Content>
 
-      {/* 全局播放器和 audio 标签 */}
-      <PlayerBar
-        audioRef={audioRef}
+      {/* 3. 播放器和导航栏是固定定位的，它们会浮在 Content 之上 */}
+      <FloatPlayer
         currentMusic={currentMusic}
         isPlaying={isPlaying}
         onPlayPause={handlePlayPause}
-        onSave={handleSave}
-        onNext={handleNext}
-        onPrev={handlePrev}
-        onClose={handleClose}
+        visible={activeTab !== 'player'}
       />
-      <audio ref={audioRef} style={{ display: "none" }} />
+      <audio ref={audioRef} onEnded={handleNext} style={{ display: "none" }} />
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </Layout>
   );
