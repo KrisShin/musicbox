@@ -11,6 +11,7 @@
       "identifier": "http:default",
       "allow": [
         "https://www.gequhai.net/**",
+        "https://www.gequbao.com/**",
         "https://*.kuwo.cn/**"
       ]
     },

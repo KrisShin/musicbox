@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS music (
     -- musicDetail 部分 (全部可选)
     lyric           TEXT,                              -- 歌词文本
     download_mp3    TEXT,                              -- MP3 下载链接
-    download_kuake  TEXT,                              -- 夸克下载链接
+    download_extra  TEXT,                              -- 夸克下载链接
     cover_url       TEXT,                              -- 封面图片 URL
     duration_secs   INTEGER,                           -- 时长 (秒)
     download_mp3_id TEXT,                              -- MP3 下载 ID

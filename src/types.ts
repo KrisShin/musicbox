@@ -3,7 +3,7 @@
 export interface MusicDetail {
   lyric?: string;
   download_mp3?: string;
-  download_kuake?: string;
+  download_extra?: string;
   cover_url?: string;
   duration?: number;
   download_mp3_id?: string;

@@ -126,7 +126,7 @@ const PlaylistPage: React.FC = () => {
           {/* 封面和信息 */}
           <Flex gap="large" className="header-info-section" >
             <Image
-              src={selectedPlaylist.cover_path.replace('http://', 'https://') || '/default_cover.png'}
+              src={selectedPlaylist?.cover_path?.replace('http://', 'https://') || '/default_cover.png'}
               width={120} height={120}
               className="header-cover-img"
             />

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import { Music } from '../types';
-import { musicDetail, searchMusic } from '../crawler';
+import { BASE_URL, musicDetail, searchMusic } from '../util/crawler';
 import { downloadDir } from '@tauri-apps/api/path';
 import { save } from '@tauri-apps/plugin-dialog';
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
@@ -85,7 +85,7 @@ export const useAppStore = create<AppState>()(
           currentPage = page + 1;
         }
         try {
-          const result = await searchMusic(keyword, currentPage);
+          const result = await searchMusic(keyword);
           if (result.music_list.length === 0) {
             set({ hasMore: false, loading: false });
             throw new Error("404");
@@ -137,7 +137,7 @@ export const useAppStore = create<AppState>()(
           const response = await tauriFetch(music.play_url, {
             method: "GET",
             headers: {
-              Referer: `https://www.gequhai.net${music.url}`,
+              Referer: `${BASE_URL}${music.url}`,
             },
           });
           if (!response.ok) {
