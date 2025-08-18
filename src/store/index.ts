@@ -24,25 +24,32 @@ const tauriStorage = {
   },
 };
 
+export type PlayMode = 'sequence' | 'single' | 'shuffle';
+
 // 2. 定义 store 的 state 和 actions 的类型
 interface AppState {
-  // State
+  // 搜索状态
   loading: boolean;
   searched: boolean;
   musicList: Music[];
   currentKeyword: string;
   page: number;
   hasMore: boolean;
-  playingMusicIndex: number;
+
+  // 播放状态
+  playQueue: Music[];
   currentMusic: Music | null;
   isPlaying: boolean;
+  playingMusicIndex: number;
+  playMode: PlayMode; // [新增] 播放模式
   currentTime: number;
   duration: number;
 
 
   // Actions
   handleSearch: (value: string) => Promise<void>;
-  handleDetail: (music: Music, index: number) => Promise<void>;
+  handleDetail: (music: Music) => Promise<void>;
+  startPlayback: (songs: Music[], startIndex: number) => Promise<void>;
   handlePlayPause: () => void;
   _playIndexMusic: (index: number) => void;
   handleNext: () => void;
@@ -51,6 +58,7 @@ interface AppState {
   handleClose: () => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
+  cyclePlayMode: (mode?: PlayMode) => Promise<string>; // [新增] 切换播放模式
 }
 
 // 3. 创建 Zustand store
@@ -64,14 +72,17 @@ export const useAppStore = create<AppState>()(
       currentKeyword: '热门',
       page: 1,
       hasMore: false,
-      playingMusicIndex: -1,
+
+      playQueue: [],
       currentMusic: null,
+      playMode: 'sequence', // 默认播放模式为顺序播放
+      playingMusicIndex: -1,
       isPlaying: false,
       currentTime: 0,
       duration: 0,
 
       // --- Actions ---
-      handleSearch: async (value) =>  {
+      handleSearch: async (value) => {
         const keyword = value.trim();
         if (!keyword) return;
 
@@ -100,25 +111,44 @@ export const useAppStore = create<AppState>()(
           set({ loading: false, searched: false });
         }
       },
-      handleDetail: async (music, index) => {
-        set({ playingMusicIndex: index });
+      handleDetail: async (music: Music) => {
         try {
           const result = await musicDetail(music);
-          set({ currentMusic: result, isPlaying: true });
+          set({ currentMusic: result });
         } catch (error) {
           throw error;
         }
       },
+
       handlePlayPause: () => {
         set((state) => ({ isPlaying: !state.isPlaying }));
       },
+
+      startPlayback: async (musicList, startIndex) => {
+        if (!musicList || musicList.length === 0) return;
+
+        // 1. 设置播放队列
+        set({ playQueue: musicList, playingMusicIndex: startIndex });
+
+        // 2. 获取歌曲详情并开始播放
+        const musicToPlay = musicList[startIndex];
+        try {
+          await get().handleDetail(musicToPlay).then(() => {
+            set({ isPlaying: true });
+          });
+        } catch (error) {
+          throw new Error('获取歌曲详情失败');
+        }
+      },
+
       _playIndexMusic: (index) => {
-        const { musicList, handleDetail, handleClose } = get();
-        if (index < 0 || index >= musicList.length) {
+        const { playQueue, handleDetail, startPlayback, handleClose } = get();
+        if (index < 0 || index >= playQueue.length) {
           handleClose();
           return;
         }
-        handleDetail(musicList[index], index);
+        handleDetail(playQueue[index])
+        startPlayback(playQueue, index);
       },
       handleSave: async () => {
         const music = get().currentMusic;
@@ -151,14 +181,56 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      handleNext: () => get()._playIndexMusic(get().playingMusicIndex + 1),
-      handlePrev: () => get()._playIndexMusic(get().playingMusicIndex - 1),
+      handleNext: () => {
+        const { playMode, playingMusicIndex, playQueue, _playIndexMusic } = get();
+        if (playQueue.length === 0) return;
+
+        let nextIndex = playingMusicIndex;
+        switch (playMode) {
+          case 'single':
+            // 单曲循环：重新播放当前歌曲
+            _playIndexMusic(playingMusicIndex);
+            return;
+          case 'shuffle':
+            // 随机播放：获取一个随机索引
+            nextIndex = Math.floor(Math.random() * playQueue.length);
+            break;
+          case 'sequence':
+          default:
+            // 顺序播放
+            nextIndex = playingMusicIndex + 1;
+            // 如果是最后一首，则循环到第一首
+            if (nextIndex >= playQueue.length) {
+              nextIndex = 0;
+            }
+            break;
+        }
+        _playIndexMusic(nextIndex);
+      },
+      handlePrev: () => {
+        const { playingMusicIndex, playQueue, _playIndexMusic } = get();
+        if (playQueue.length <= 1) return;
+        let prevIndex = playingMusicIndex - 1;
+        if (prevIndex < 0) {
+          prevIndex = playQueue.length - 1; // 循环到最后一首
+        }
+        _playIndexMusic(prevIndex);
+      },
 
       handleClose: () => {
-        set({ currentMusic: null, isPlaying: false, playingMusicIndex: -1 });
+        set({ currentMusic: null, isPlaying: false, playingMusicIndex: -1, playQueue: [] });
       },
       setCurrentTime: (time) => set({ currentTime: time }),
       setDuration: (duration) => set({ duration: duration }),
+      cyclePlayMode: async (mode?: PlayMode) => {
+        const { playMode } = get();
+        if (mode && playMode.includes(mode)) { set({ playMode: mode }); return mode; };
+        const modes: PlayMode[] = ['sequence', 'single', 'shuffle'];
+        const currentIndex = modes.indexOf(playMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        set({ playMode: modes[nextIndex] });
+        return modes[nextIndex]; // 返回新的播放模式
+      },
     }),
     {
       // 4. 配置 persist 中间件
@@ -171,6 +243,8 @@ export const useAppStore = create<AppState>()(
         playingMusicIndex: state.playingMusicIndex,
         musicList: state.musicList, // 例如，保存上次的搜索列表
         currentKeyword: state.currentKeyword,
+        playQueue: state.playQueue,
+        playMode: state.playMode,
       }),
     }
   )

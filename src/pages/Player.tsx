@@ -6,11 +6,14 @@ import {
   DownloadOutlined,
   StepForwardOutlined,
   StepBackwardOutlined,
-  RetweetOutlined, // 播放模式图标示例
+  RetweetOutlined,
+  OrderedListOutlined,
+  SwapOutlined
 } from '@ant-design/icons';
 import { useAppStore } from '../store';
 import LyricScroller from '../components/LyricScroller'; // 确保 LyricScroller 组件存在
 import './Player.css'; // 我们将为它创建专属的 CSS
+import { useGlobalMessage } from '../components/MessageHook';
 
 const { Title, Text } = Typography;
 
@@ -33,11 +36,15 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
     isPlaying,
     currentTime,
     duration,
+    playMode,
     handlePlayPause,
     handleNext,
     handlePrev,
     handleSave,
+    cyclePlayMode
   } = useAppStore();
+
+  const messageApi = useGlobalMessage();
 
   // [关键] Seek 操作直接在页面内部处理，因为它需要 audioRef
   const handleSeek = (value: number) => {
@@ -54,6 +61,21 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
       </Flex>
     );
   }
+
+  const renderPlayModeIcon = () => {
+    switch (playMode) {
+      case 'single':
+        // 单曲循环
+        return <RetweetOutlined className="control-icon-secondary" />;
+      case 'shuffle':
+        // 随机播放
+        return <SwapOutlined className="control-icon-secondary" />;
+      case 'sequence': // <-- 修正拼写：sequential
+      default:
+        // 顺序播放
+        return <OrderedListOutlined className="control-icon-secondary" />;
+    }
+  };
 
   return (
     <div className="player-page-container">
@@ -99,7 +121,21 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
 
           {/* 控制按钮 */}
           <Flex justify="space-around" align="center" className="controls">
-            <Button type="text" shape="circle" icon={<RetweetOutlined className="control-icon-secondary" />} />
+            <Button type="text" shape="circle" icon={renderPlayModeIcon()} onClick={() => {
+              cyclePlayMode().then((playmode: string) => {
+                switch (playmode) {
+                  case 'single':
+                    messageApi.success('单曲循环', 0.8);
+                    break;
+                  case 'shuffle':
+                    messageApi.success('随机播放', 0.8);
+                    break;
+                  case 'sequence':
+                    messageApi.success('顺序播放', 0.8);
+                    break;
+                }
+              })
+            }} />
             <Button type="text" shape="circle" icon={<StepBackwardOutlined className="control-icon" />} onClick={handlePrev} />
             <Button
               type="text"

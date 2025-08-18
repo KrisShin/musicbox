@@ -155,7 +155,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
       const payload = {
         song_id: updatedMusic.song_id,
         lyric: updatedMusic.lyric,
-        cover_url: updatedMusic.cover_url,
+        cover_url: updatedMusic?.cover_url?.replace('http://', 'https://'),
         duration_secs: updatedMusic.duration,
         play_url: updatedMusic.play_url,
         download_mp3: updatedMusic.download_mp3,

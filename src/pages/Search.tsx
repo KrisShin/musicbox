@@ -14,7 +14,7 @@ const SearchPage: React.FC = () => {
     hasMore,
     searched,
     handleSearch,
-    handleDetail,
+    startPlayback,
     currentKeyword
   } = useAppStore();
 
@@ -34,6 +34,16 @@ const SearchPage: React.FC = () => {
         messageApi.error(error.message || "搜索时发生未知错误");
       }
     }
+  };
+
+  const handlePlayFromSearch = (index: number) => {
+    // 关键：将整个 musicList 作为播放队列传入
+    startPlayback(musicList, index).then(() => {
+      messageApi.success(`开始播放 ${musicList[index].title}`);
+    }).catch(error => {
+      // 可以在这里处理 messageApi 的错误提示
+      console.error(error);
+    });
   };
 
   useEffect(() => {
@@ -71,7 +81,7 @@ const SearchPage: React.FC = () => {
                   item={item}
                   index={index}
                   primaryThemeColor={primaryThemeColor}
-                  handleDetail={handleDetail}
+                  handleDetail={handlePlayFromSearch}
                 />
               )}
             />

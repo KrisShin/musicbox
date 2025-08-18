@@ -11,7 +11,7 @@ const { Title, Text } = Typography;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { handleDetail } = useAppStore();
+  const { startPlayback, cyclePlayMode } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
@@ -91,12 +91,11 @@ const PlaylistPage: React.FC = () => {
     }
   };
 
-  // 5. 点击歌曲列表中的一行时播放
-  const handlePlaySong = (song: Music, index: number) => {
-    // 这里可以复用 handleDetail 来加载并播放歌曲
-    // 也可以创建一个新的 store action 来“播放一个列表”，以便实现上下文播放（上一首/下一首）
-    handleDetail(song, index);
-  }
+  const handlePlaySong = (index: number) => {
+    // 将 PlaylistMusic[] 转换为 Music[]
+    const musicQueue = selectedPlaylistMusic.map(s => s.music);
+    startPlayback(musicQueue, index).catch(error => console.error(error));
+  };
 
   const handleRemoveFromPlaylist = async (music: Music) => {
     if (!selectedPlaylist) return;
@@ -116,6 +115,20 @@ const PlaylistPage: React.FC = () => {
     }
   };
 
+  // [新增] 播放整个歌单的函数
+  const handlePlayAll = (mode: 'sequence' | 'shuffle') => {
+    if (selectedPlaylistMusic.length === 0) return;
+
+    // 1. 设置播放模式
+    cyclePlayMode(mode); // 假设你在 store 中也添加了 setPlayMode
+
+    // 2. 播放第一首歌
+    const musicQueue = selectedPlaylistMusic.map(s => s.music);
+    const startIndex = mode === 'shuffle' ? Math.floor(Math.random() * musicQueue.length) : 0;
+    messageApi.success(`${mode === 'sequence' ? '顺序' : '随机'} 播放 ${selectedPlaylist?.name || '歌单'}, 即将播放 ${musicQueue[startIndex].title}`);
+    startPlayback(musicQueue, startIndex).catch(error => console.error(error));
+  }
+
   // --- 渲染 ---
 
   return (
@@ -126,7 +139,7 @@ const PlaylistPage: React.FC = () => {
           {/* 封面和信息 */}
           <Flex gap="large" className="header-info-section" >
             <Image
-              src={selectedPlaylist?.cover_path?.replace('http://', 'https://') || '/default_cover.png'}
+              src={selectedPlaylist?.cover_path || '/default_cover.png'}
               width={120} height={120}
               className="header-cover-img"
             />
@@ -147,8 +160,8 @@ const PlaylistPage: React.FC = () => {
           </Flex>
           {/* 操作按钮 */}
           <Flex gap="middle" className="header-actions">
-            <Button type="primary" icon={<PlaySquareOutlined />}>顺序播放</Button>
-            <Button type="primary" icon={<RetweetOutlined />}>随机播放</Button>
+            <Button type="primary" icon={<PlaySquareOutlined />} onClick={() => handlePlayAll('sequence')}>顺序播放</Button>
+            <Button type="primary" icon={<RetweetOutlined />} onClick={() => handlePlayAll('shuffle')}>随机播放</Button>
             <Button type="primary" icon={<DownloadOutlined />} disabled>下载全部</Button>
           </Flex>
         </Flex>
@@ -165,7 +178,7 @@ const PlaylistPage: React.FC = () => {
             renderItem={(playlistSong, index) => (
               <List.Item
                 className="song-list-item"
-                onClick={() => handlePlaySong(playlistSong.music, index)}
+                onClick={() => handlePlaySong(index)}
                 actions={[
                   <Button type="text" shape="circle" icon={<DownloadOutlined />} onClick={(e) => { e.stopPropagation(); /* ... */ }} />,
                   // [新增] 移除按钮
@@ -205,7 +218,7 @@ const PlaylistPage: React.FC = () => {
               }}
             >
               <List.Item.Meta
-                avatar={<Avatar shape="square" src={p.cover_path || '/default_cover.png'} />}
+                avatar={<Avatar shape="square" src={p?.cover_path || '/default_cover.png'} />}
                 title={p.name}
                 description={`${p.song_count} 首歌曲`}
               />

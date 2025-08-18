@@ -121,10 +121,10 @@ const App = () => {
       // 注意：currentTime 不再需要全局 state，可以直接从 ref 读取用于 PlayerBar
       // 如果其他组件也需要，可以考虑放回 store
     };
-    const handleEnded = () => handleNext();
+    // const handleEnded = () => handleNext();
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
+    // audio.addEventListener('ended', handleEnded);
 
     return () => {
       // ... remove listeners

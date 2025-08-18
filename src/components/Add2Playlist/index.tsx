@@ -103,7 +103,7 @@ const AddToPlaylistButton = memo(({
                             ]}
                         >
                             <Flex align="center">
-                                <Avatar size={22} shape="square" src={`${playlist.cover_path}`} />
+                                <Avatar size={22} shape="square" src={`${playlist?.cover_path}`} />
                                 <Text style={{ fontSize: "14px" }}>{playlist.name}({playlist.song_count})</Text>
                             </Flex>
                         </List.Item>
