@@ -3,6 +3,7 @@
 pub mod commands;
 pub mod db;
 pub mod ffi;
+pub mod updater;
 
 use tauri::Manager; // 确保导入 Manager
 
@@ -21,6 +22,11 @@ pub fn run() {
                     .await
                     .expect("数据库初始化失败");
                 app_handle.manage(pool);
+            });
+            
+            let app_handle_for_updater = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                updater::check_for_updates(app_handle_for_updater.app()).await;
             });
             Ok(())
         })
