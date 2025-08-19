@@ -247,6 +247,7 @@ const App = () => {
 
       {/* 3. 播放器和导航栏是固定定位的，它们会浮在 Content 之上 */}
       <FloatPlayer
+        key={currentMusic?.cover_url}
         currentMusic={currentMusic}
         isPlaying={isPlaying}
         onPlayPause={handlePlayPause}

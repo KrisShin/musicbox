@@ -1,10 +1,13 @@
 // src-tauri/src/commands.rs
 
-use crate::{db::{
-    self, DbPool, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
-}, updater};
+use crate::{
+    db::{
+        self, DbPool, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
+    },
+    updater,
+};
 
-use tauri::{ipc::Invoke, AppHandle};
+use tauri::{AppHandle, ipc::Invoke};
 
 #[tauri::command]
 async fn save_music(music_list: Vec<Music>, state: tauri::State<'_, DbPool>) -> Result<(), String> {
@@ -107,10 +110,7 @@ async fn check_for_updates(app_handle: AppHandle) -> Result<updater::UpdateInfo,
 
 // 4. [新增] 忽略指定版本的 command
 #[tauri::command]
-async fn ignore_update(
-    version: String,
-    state: tauri::State<'_, db::DbPool>,
-) -> Result<(), String> {
+async fn ignore_update(version: String, state: tauri::State<'_, db::DbPool>) -> Result<(), String> {
     db::save_app_setting(state.inner(), "ignore_version".to_string(), version)
         .await
         .map_err(|e| e.to_string())
@@ -129,6 +129,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         save_app_setting,
         get_app_setting,
         check_for_updates,
-        ignore_update
+        ignore_update,
     ]
 }

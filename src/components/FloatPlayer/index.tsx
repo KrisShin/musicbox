@@ -6,14 +6,14 @@ import './index.css';
 
 const { Text } = Typography;
 
-interface PlayerBarProps {
+interface FloatPlayerProps {
   currentMusic: Music | null;
   isPlaying: boolean;
   onPlayPause: () => void;
   visible: boolean;
 }
 
-const FloatPlayer: React.FC<PlayerBarProps> = ({
+const FloatPlayer: React.FC<FloatPlayerProps> = ({
   currentMusic,
   isPlaying,
   onPlayPause,

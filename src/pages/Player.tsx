@@ -81,6 +81,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
     <div className="player-page-container">
       {/* 1. 半透明的背景图 */}
       <div
+        key={currentMusic.song_id}
         className="player-bg"
         style={{ backgroundImage: `url(${currentMusic.cover_url})` }}
       />

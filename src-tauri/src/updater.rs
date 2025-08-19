@@ -17,10 +17,10 @@ pub struct UpdateInfo {
 
 // 2. [新增] 用于解析 package.json 的结构体
 #[derive(Deserialize, Debug)]
-struct PackageJson {
-    version: String,
+pub struct PackageJson {
+    pub version: String,
     #[serde(rename = "releaseNotes")] // <-- [新增] 允许解析驼峰命名的 releaseNotes
-    release_notes: Option<String>,
+    pub release_notes: Option<String>,
 }
 
 /// [重构] 核心检查逻辑，现在返回一个结构体给前端
