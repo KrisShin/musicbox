@@ -1,0 +1,76 @@
+.playlist-page-container {
+  /* height: 100%; */
+  width: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  /* 确保整体是垂直布局 */
+}
+
+/* --- 头部 --- */
+.playlist-header {
+  padding: 24px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.header-info-section {
+  width: 100%;
+  flex-direction: row !important;
+}
+
+.header-cover-img {
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* --- 歌曲列表 --- */
+.song-list-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  /* 关键：只让这个区域滚动 */
+}
+
+.song-list-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.song-list-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* --- 歌单选择模态框 --- */
+.playlist-selector-item {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.playlist-selector-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* --- 响应式布局 --- */
+/* 当屏幕宽度小于 576px 时 (典型手机宽度) */
+@media (max-width: 576px) {
+  .playlist-header {
+    padding: 16px;
+  }
+
+  .header-info-section {
+    /* 在小屏幕上，封面和文字垂直堆叠 */
+    flex-direction: column;
+    align-items: center;
+    text-align: left;
+    gap: 16px;
+  }
+
+
+  .header-actions {
+    justify-content: center;
+  }
+}
