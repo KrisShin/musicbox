@@ -1,379 +1,260 @@
-import { useState, useRef, useEffect } from "react";
-import {
-  Layout,
-  Input,
-  List,
-  Typography,
-  Spin,
-  Empty,
-  Button,
-  Image,
-  Flex,
-  message,
-} from "antd";
-import { PlayCircleOutlined } from "@ant-design/icons";
-import PlayerBar from "./components/PlayerBar";
-import type { Song } from "./types";
-import { searchMusic, musicDetail } from "./crawler";
-import { downloadDir } from "@tauri-apps/api/path";
-import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import "./App.css";
+import { useEffect, useRef, useState } from 'react';
+import { Layout, Typography, Image, Flex, Button } from 'antd';
+import SearchPage from './pages/Search';
+import PlaylistPage from './pages/Playlist';
+import PlayerPage from './pages/Player';
+import BottomNav from './components/BottomNav';
+import './App.css';
+import { useAppStore } from './store';
+import { Content } from 'antd/es/layout/layout';
+import FloatPlayer from './components/FloatPlayer';
+import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
+import { UpdateInfo } from './types';
+import { invoke } from '@tauri-apps/api/core';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
-const { Header, Content } = Layout;
-const { Search } = Input;
-const { Title, Text } = Typography;
+const { Header } = Layout;
+const { Title } = Typography;
 
-function App() {
-  // 状态管理
-  const [loading, setLoading] = useState(false);
-  const [currentKeyword, setCurrentKeyword] = useState("");
-  const [searched, setSearched] = useState(false);
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [page, setPage] = useState<number>(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [playingMusicIndex, setPlayingMusicIndex] = useState(-1);
+const AppHeader = () => (
+  <div style={{ position: "sticky", top: 0, zIndex: 10, background: '#fcf0f0ff' }}>
+    <Header
+      style={{
+        backgroundColor: "#fff5f5",
+        borderBottom: "1px solid #ffb5b5ff",
+        display: "flex",
+        justifyContent: "center",
+        padding: `env(safe-area-inset-top) 16px 4px 16px`,
+        height: `calc(75px + env(safe-area-inset-top))`,
+      }}
+    >
+      <Flex align="end" gap={1}>
+        <Image src="/header_icon.png" preview={false} wrapperStyle={{ display: 'inline-flex', height: '25px' }} width='25px' />
+        <Title level={3} style={{ margin: 0, color: "#333333", lineHeight: 1 }}>MusicBox</Title>
+      </Flex>
+    </Header>
+  </div>
+);
 
-  // 播放器状态
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+// 主应用内容组件
+const App = () => {
+  const [activeTab, setActiveTab] = useState('search');
+  const {
+    currentMusic, isPlaying, handlePlayPause, handleNext, handleClose,
+    setCurrentTime, // 获取新的 action
+    setDuration,   // 获取新的 action
+  } = useAppStore();
+
+  const messageApi = useGlobalMessage();
+  const modalApi = useGlobalModal();
+
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // 搜索处理
-  const handleSearch = async (value: string) => {
-    const keyword = value.trim();
-    if (!keyword) return;
-
-    setLoading(true);
-    setSearched(true);
-    let currentPage = 1;
-    if (keyword != currentKeyword) {
-      setCurrentKeyword(keyword); // 保存当前关键词
-    } else {
-      currentPage = page + 1;
-    }
-
-    try {
-      // 调用我们封装好的 API 函数
-      const result = await searchMusic(keyword, currentPage);
-      keyword == currentKeyword
-        ? setSongs(songs.concat(result.songs))
-        : setSongs(result.songs);
-      setHasMore(result.has_more); // 如果需要加载更多
-      setPage(currentPage);
-    } catch (error: any) {
-      message.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 下载处理
-  const handleDetail = async (song: Song, index: number) => {
-    setPlayingMusicIndex(index);
-    message.info(`获取信息中: ${song.title}, 请稍候`);
-    if (!song.url) return;
-    const result = await musicDetail(song);
-    setCurrentSong(result);
-    handlePlay(result);
-
-    if (audioRef.current && result.play_url) {
-      audioRef.current.src = result.play_url;
-      audioRef.current.play();
-    }
-    message.destroy("play");
-  };
-
-  // --- 播放逻辑 ---
-  const handlePlay = (song: Song) => {
-    if (currentSong?.song_id === song.song_id) {
-      // 如果是同一首歌，切换播放/暂停
-      handlePlayPause();
-    } else {
-      // 播放新歌曲
-      setCurrentSong(song);
-
-      // 注意：在真实应用中，url 需要从后端获取
-      if (audioRef.current && song.play_url) {
-        audioRef.current.src = song.url;
-        audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch((e) => console.error("播放失败:", e));
-      }
-      message.success(`开始播放: ${song.title}`);
-    }
-  };
-
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      audioRef.current?.pause();
-    } else {
-      audioRef.current?.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-  const _playIndexMuisc = (index: number) => {
-    if (index < 0 || index >= songs.length) {
-      setPlayingMusicIndex(-1);
-      handleClose();
-      return;
-    }
-    const song = songs[index];
-    setPlayingMusicIndex(index);
-    handleDetail(song, index);
-  };
-
-  const handleNext = () => _playIndexMuisc(playingMusicIndex + 1);
-  const handlePrev = () => _playIndexMuisc(playingMusicIndex - 1);
-  const handleSeek = (value: number) => {
-    const duration = audioRef.current?.duration || 0;
-    if (audioRef.current)
-      audioRef.current.currentTime = (value / 100) * duration;
-  };
-  const handleClose = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = ""; // 清空资源，防止继续在后台加载
-    }
-    setIsPlaying(false);
-    setCurrentSong(null);
-  };
-
-  const handleSave = async () => {
-    const song = currentSong;
-    const messageKey = `download-${song?.song_id}`;
-    message.loading({
-      content: `《${song?.title}》: 解析链接...`,
-      key: messageKey,
-      duration: 0,
-    });
-
-    try {
-      if (!song?.play_url) throw new Error("未能获取下载链接");
-
-      message.loading({
-        content: `《${song.title}》: 选择保存位置...`,
-        key: messageKey,
-        duration: 0,
-      });
-
-      const suggestedFilename = `${song.title} - ${song.artist}.mp3`;
-      const defaultPath = await downloadDir();
-      const filePath = await save({
-        title: "选择保存位置",
-        defaultPath: `${defaultPath}/${suggestedFilename}`,
-        filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
-      });
-
-      if (!filePath) {
-        message.destroy(messageKey);
-        // setDownloadingId(null);
-        return;
-      }
-
-      message.loading({
-        content: `《${song.title}》: 下载中...`,
-        key: messageKey,
-        duration: 0,
-      });
-
-      // --- 最终的、结合了所有知识的请求 ---
-      const response = await tauriFetch(song.play_url, {
-        method: "GET",
-        headers: {
-          // 伪造一个合法的来源页面，这是通过服务器校验的关键
-          Referer: `https://www.gequhai.net${song.url}`,
-        },
-      });
-      // ---
-
-      if (!response.ok) {
-        throw new Error(`下载请求失败，状态: ${response.status}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      await writeFile(filePath, uint8Array);
-
-      message.success({
-        content: `《${song.title}》已成功保存！`,
-        key: messageKey,
-        duration: 3,
-      });
-      // await open(filePath.substring(0, filePath.lastIndexOf("/")));
-    } catch (error: any) {
-      message.error({
-        content: `下载失败: ${error.message || "未知错误"}`,
-        key: messageKey,
-        duration: 5,
-      });
-    } finally {
-      // setDownloadingId(null);
-    }
-  };
-
-  // 使用 useEffect 监听 audio 元素的事件来更新进度
-  // --- 3. 使用 useEffect 来处理所有 audio 元素的副作用 ---
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // 当 src 改变，音频开始加载，元数据加载完毕后会触发此事件
-    const handleMetadataLoaded = () => {
-      // 此时 audio.duration 就有值了
-      currentSong && setCurrentSong({ ...currentSong, duration: audio.duration });
-      // 元数据加载完后，再开始播放
-      audio.play();
-      setIsPlaying(true);
-    };
+    // --- 同步歌曲源 ---
+    if (currentMusic && currentMusic.play_url) {
+      if (audio.src !== currentMusic.play_url) {
+        audio.src = currentMusic.play_url;
+        // 当源改变时，我们期望它能自动播放
+        if (isPlaying && !audio.played) {
+          audio.play().catch(e => console.error("自动播放失败:", e));
+        }
+      } ` `
+    } else {
+      // 如果没有歌曲或播放链接，则清空
+      audio.src = "";
+    }
 
-    // 监听播放进度
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-    };
+    // --- 同步播放/暂停状态 ---
+    if (isPlaying) {
+      // 检查是否已暂停，避免不必要的 play() 调用
+      if (audio.paused) {
+        audio.play().catch(e => console.error("播放失败:", e));
+      }
+    } else {
+      // 检查是否正在播放，避免不必要的 pause() 调用
+      if (!audio.paused) {
+        audio.pause();
+      }
+    }
+  }, [currentMusic, isPlaying]); // 同时监听歌曲和播放状态的变化
 
-    // 监听播放结束
-    const handleEnded = () => {
-      setIsPlaying(false);
-      // (可选) 在这里可以实现自动播放下一首的逻辑
-    };
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    // 添加事件监听
-    audio.addEventListener("loadedmetadata", handleMetadataLoaded);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onDurationChange = () => setDuration(audio.duration);
 
-    // 组件卸载或 currentSong 改变时，清理上一次的监听器
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('loadedmetadata', onDurationChange);
+
     return () => {
-      audio.removeEventListener("loadedmetadata", handleMetadataLoaded);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('loadedmetadata', onDurationChange);
     };
-  }, [currentSong]); // 依赖 currentSong，当歌曲切换时，重新设置监听
+  }, [setCurrentTime, setDuration]);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'search':
+        return <SearchPage />;
+      case 'playlist':
+        return <PlaylistPage />;
+      case 'player':
+        return <PlayerPage audioRef={audioRef} />;
+      default:
+        return <SearchPage />;
+    }
+  };
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentMusic?.play_url) {
+      handleClose(); // 如果没有播放链接，就关闭播放器
+      return;
+    };
+
+    if (audio.src !== currentMusic.play_url) {
+      audio.src = currentMusic.play_url;
+      if (isPlaying && !audio.played) {
+        audio.play().catch(e => console.error("自动播放失败:", e));
+      }
+    }
+
+  }, [currentMusic, handleNext]);
+
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      try {
+        const result: UpdateInfo = await invoke('check_for_updates');
+
+        if (result.update_available) {
+
+          // 2. 捕获 modal 实例，以便手动关闭
+          let modalInstance: any = null;
+
+          // 定义各个按钮的点击事件处理函数
+          const handleGoNow = async () => {
+            const downloadUrl = result?.download_url;
+            if (downloadUrl) {
+              await copy2Clipboard()
+              try {
+                const newWindow = open(downloadUrl);
+                if (!newWindow) {
+                  messageApi.error("无法打开新窗口，可能被浏览器拦截了。");
+                }
+              } catch (err) {
+                console.error("无法打开下载链接:", err);
+                messageApi.error("无法打开下载链接，请手动复制。");
+              }
+            } else {
+              messageApi.error("下载链接无效！");
+            }
+            modalInstance?.destroy(); // 关闭弹窗
+          };
+
+          const handleIgnoreVersion = () => {
+            invoke('ignore_update', { version: result.version })
+              .then(() => messageApi.info(`已忽略版本 v${result.version}，不再提醒。`))
+              .catch(err => console.error("忽略版本失败:", err));
+            modalInstance?.destroy(); // 关闭弹窗
+          };
+
+          const handleRemindLater = () => {
+            modalInstance?.destroy(); // 只关闭弹窗，不做任何事
+          };
+
+          const copy2Clipboard = async () => {
+            try {
+              await writeText(result.download_password!);
+              messageApi.success('密码已复制到剪贴板！');
+            } catch (err) {
+              console.error('复制失败:', err);
+              messageApi.error('复制失败，请手动复制。');
+            }
+          }
+
+          // 3. 使用 modal 实例，并传入自定义 footer
+          modalInstance = modalApi.confirm({
+            title: `发现新版本 v${result.version}`,
+            // content 部分保持不变
+            content: (
+              <div>
+                <p>有新的更新可用，是否立即下载？</p>
+                <p><strong>更新日志:</strong></p>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{result.notes}</p>
+                {result.download_password && (
+                  <p>
+                    <strong>下载密码: </strong>
+                    <span
+                      onClick={copy2Clipboard}
+                      style={{ color: "#F08080", cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
+                    >
+                      {result.download_password}
+                    </span>
+                  </p>
+                )}
+              </div>
+            ),
+            // 4. 移除 okText, cancelText, onOk, onCancel，使用 footer 完全接管
+            footer: (
+              <Flex justify='end' gap="small" style={{ marginTop: '16px' }}>
+                <Button type='text' onClick={handleIgnoreVersion}>忽略此版本</Button>
+                <Button onClick={handleRemindLater}>下次再说</Button>
+                <Button type="primary" onClick={handleGoNow}>
+                  立即前往
+                </Button>
+              </Flex>
+            ),
+          });
+        } else {
+          console.log("检查更新：当前已是最新版本或新版本已被忽略。");
+        }
+      } catch (error) {
+        console.error("检查更新失败:", error);
+      }
+    };
+
+    const timer = setTimeout(checkForUpdates, 1000);
+    return () => clearTimeout(timer);
+  }, [messageApi, modalApi]);
 
   return (
-    <Layout style={{ minHeight: "100vh", backgroundColor: "#fcf0f0ff" }}>
-      <div
+    // 1. [核心改动] 将根 Layout 设置为固定屏幕高度的 Flex 容器
+    <Layout style={{ height: "100vh", display: 'flex', flexDirection: 'column', backgroundColor: "#fcf0f0ff" }}>
+      {/* Header 部分不变，它占据固定高度 */}
+      <AppHeader />
+
+      {/* 2. [核心改动] 使用 Antd 的 Content 组件作为弹性滚动区域 */}
+      <Content
         style={{
-          position: "sticky", // 1. 将 Header 设置为粘性定位
-          top: 0, // 2. 粘在顶部
-          zIndex: 10, // 3. 确保它在最上层
+          flex: 1, // 关键：让这个区域占据所有剩余的可用空间
+          overflowY: 'auto', // 关键：只在这个区域内部启用垂直滚动
+          padding: '6px',
+          paddingBottom: "76px", // 保留您的逻辑，防止内容被底部栏遮挡
+          transition: 'padding-bottom 0.3s',
+          scrollbarWidth: 'none', // 使滚动条更细
         }}
       >
-        <Header
-          style={{
-            // 1. 设置浅粉色背景和底部边框
-            backgroundColor: "#fff5f5",
-            borderBottom: "1px solid #ffb5b5ff",
-            display: "flex",
-            justifyContent: "center",
-            padding: `env(safe-area-inset-top) 16px 4px 16px`,
-            height: `calc(75px + env(safe-area-inset-top))`,
-          }}
-        >
-          <Flex align="end" gap={1}>
-            <Image
-              src="/header_icon.png"
-              preview={false}
-              width={25}
-              height={25}
-              style={{ display: "flex" }}
-            />
-            <Title
-              level={3}
-              style={{
-                margin: 0,
-                color: "#333333",
-                lineHeight: 1, // 确保标题行高不会增加额外空间
-              }}
-            >
-              MusicBox
-            </Title>
-          </Flex>
-        </Header>
-        <div style={{ padding: "5px" }}>
-          <Search
-            placeholder="输入歌曲名、歌手..."
-            enterButton="搜索"
-            size="large"
-            onSearch={handleSearch}
-            loading={loading}
-          />
-        </div>
-      </div>
-
-      <Content className="content-padding-bottom" style={{ padding: "6px" }}>
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 8,
-            maxWidth: "800px",
-            margin: "0 auto",
-            paddingBottom: currentSong ? "110px" : "24px",
-            transition: "padding-bottom 0.3s ease-in-out", // 增加一个平滑的过渡效果
-          }}
-        >
-          <div>
-            <Spin spinning={loading} tip="正在玩命搜索中...">
-              {songs.length > 0 ? (
-                <List
-                  style={{
-                    padding: "14px",
-                  }}
-                  dataSource={songs}
-                  renderItem={(item, index) => (
-                    <List.Item
-                      actions={[
-                        <Button
-                          type="primary"
-                          icon={<PlayCircleOutlined />}
-                          onClick={() => handleDetail(item, index)}
-                        />,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={<Text>{item.title}</Text>}
-                        description={`${item.artist}`}
-                      />
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                searched && (
-                  <Empty description="未能找到相关歌曲，换个关键词试试？" />
-                )
-              )}
-              {hasMore && (
-                <Flex justify="center">
-                  <Button
-                    type="primary"
-                    onClick={() => handleSearch(currentKeyword)}
-                  >
-                    加载更多
-                  </Button>
-                </Flex>
-              )}
-            </Spin>
-          </div>
-        </div>
+        {renderContent()}
       </Content>
 
-      {/* 播放器和隐藏的 audio 标签 */}
-      <PlayerBar
-        currentSong={currentSong}
+      {/* 3. 播放器和导航栏是固定定位的，它们会浮在 Content 之上 */}
+      <FloatPlayer
+        key={currentMusic?.cover_url}
+        currentMusic={currentMusic}
         isPlaying={isPlaying}
-        currentTime={currentTime}
         onPlayPause={handlePlayPause}
-        onSave={handleSave}
-        onNext={handleNext}
-        onPrev={handlePrev}
-        onSeek={handleSeek}
-        onClose={handleClose}
+        visible={activeTab !== 'player'}
       />
-      <audio ref={audioRef} style={{ display: "none" }} />
+      <audio ref={audioRef} onEnded={handleNext} style={{ display: "none" }} />
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </Layout>
   );
 }

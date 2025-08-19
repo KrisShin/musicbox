@@ -1,0 +1,106 @@
+/* 定义文字滚动动画 */
+@keyframes scroll-text {
+    from {
+        transform: translateX(0%);
+    }
+
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+/* 基础容器样式 */
+.floating-player-container {
+    position: fixed;
+    bottom: 80px;
+    left: 15px;
+    z-index: 1000;
+
+    /* [修改] 宽度由内容自适应，不再固定 */
+    min-width: 50px;
+    /* 给一个最小宽度 */
+    max-width: 60px;
+    /* 给一个最大宽度 */
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+/* [新增] 可交互的封面区域 */
+.cover-section-interactive {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    /* 明确这是可点击的 */
+    border-radius: 50%;
+    /* 确保悬浮效果不会超出圆形 */
+    transition: transform 0.2s ease-out;
+    align-self: center;
+    /* 让封面居中 */
+}
+
+.cover-section-interactive:hover {
+    transform: scale(1.1);
+    /* 添加一个简单的交互动效 */
+}
+
+.cover-section-interactive .ant-avatar {
+    width: 100%;
+    height: 100%;
+}
+
+/* [修改] 图标覆盖层样式 */
+.player-icon-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    /* 匹配头像的圆形 */
+
+    /* [关键] 让它永久可见 */
+    opacity: 1;
+    pointer-events: auto;
+    /* 确保可交互 */
+}
+
+/* [新增] 歌曲信息滚动容器 */
+.song-info-scroller {
+    width: 100%;
+    overflow: hidden;
+    /* 隐藏超出部分，这是实现滚动效果的关键 */
+    white-space: nowrap;
+    /* 强制文字不换行 */
+}
+
+/* [新增] 滚动的文字本身 */
+.song-info-text {
+    display: inline-block;
+    /* 必须是 inline-block 才能应用 transform */
+    padding-left: 100%;
+    /* 让文字从容器右侧开始滚动，实现无缝效果 */
+
+    /* 应用动画：动画名 持续时间 线性无限循环 */
+    animation: scroll-text 14s linear infinite;
+    font-size: 13px;
+    color: #555;
+}
+
+/* 鼠标悬浮时暂停滚动，方便阅读 (桌面端体验优化) */
+.floating-player-container:hover .song-info-text {
+    animation-play-state: paused;
+}

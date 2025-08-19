@@ -19,10 +19,10 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-          protocol: "ws",
-          host,
-          port: 5175,
-        }
+        protocol: "ws",
+        host,
+        port: 5175,
+      }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`

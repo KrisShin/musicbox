@@ -1,4 +1,4 @@
-import React from "react";
+import React, { RefObject, useEffect, useState } from "react";
 import { Layout, Row, Col, Typography, Button, Slider, Flex } from "antd";
 import {
   PlayCircleOutlined,
@@ -8,7 +8,7 @@ import {
   StepForwardOutlined,
   StepBackwardOutlined,
 } from "@ant-design/icons";
-import type { Song } from "../../types";
+import type { Music } from "../../types";
 import LyricScroller from "../LyricScroller";
 
 const { Footer } = Layout;
@@ -16,36 +16,58 @@ const { Text } = Typography;
 
 // 定义组件的 Props 接口
 interface PlayerBarProps {
-  currentSong: Song | null;
+  audioRef: RefObject<HTMLAudioElement>; // 接收 audioRef
+  currentMusic: Music | null;
   isPlaying: boolean;
-  currentTime: number;
   onPlayPause: () => void;
-  onSave: () => void;
-  onPrev: () => void;
   onNext: () => void;
-  onSeek: (value: number) => void;
+  onPrev: () => void;
   onClose: () => void;
+  onSave: () => void;
 }
-const formatTime = (timeInSeconds: number): string => {
-  const S = Math.floor(timeInSeconds);
-  const m = Math.floor(S / 60);
-  const s = S % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+const formatTime = (time: number) => {
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
 };
 
 const PlayerBar: React.FC<PlayerBarProps> = ({
-  currentSong,
+  audioRef,
+  currentMusic,
   isPlaying,
-  currentTime,
   onPlayPause,
   onSave,
   onPrev,
   onNext,
-  onSeek,
   onClose,
 }) => {
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // [关键] 副作用监听器，只在 PlayerBar 内部生效
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration);
+
+    // 监听原生 audio 事件
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('durationchange', handleDurationChange);
+    // loadedmetadata 也可以在这里监听来首次设置 duration
+    audio.addEventListener('loadedmetadata', handleDurationChange);
+
+    return () => {
+      // 组件卸载时清理监听器
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('loadedmetadata', handleDurationChange);
+    };
+  }, [audioRef]); // 依赖 audioRef
+
   // 如果没有当前歌曲，不显示播放栏
-  if (!currentSong) {
+  if (!currentMusic) {
     return null;
   }
 
@@ -53,9 +75,18 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
     if (typeof value !== "number") return "";
     const time =
       (value / 100) *
-      (typeof currentSong.duration === "number" ? currentSong.duration : 0);
+      (typeof currentMusic.duration === "number" ? currentMusic.duration : 0);
     return formatTime(time);
   };
+
+  const handleSeek = (value: number) => {
+    const audio = audioRef.current;
+    if (audio && duration > 0) {
+      audio.currentTime = value;
+      setCurrentTime(value); // 立即更新UI，避免延迟感
+    }
+  };
+
 
   return (
     <Footer
@@ -78,14 +109,14 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
               ellipsis
               style={{ maxWidth: "30%", alignContent: "center" }}
             >
-              {currentSong.title} - {currentSong.artist}
+              {currentMusic.title} - {currentMusic.artist}
             </Text>
             <Flex
               flex={1}
               style={{ minWidth: "70%", borderBottom: "1px solid #ffb5b5ff" }}
             >
               <LyricScroller
-                lyricText={currentSong.lyric || ""}
+                lyricText={currentMusic.lyric || ""}
                 currentTime={currentTime}
               />
             </Flex>
@@ -131,21 +162,20 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                 <Slider
                   value={
                     (currentTime /
-                      (typeof currentSong.duration === "number"
-                        ? currentSong.duration
+                      (typeof currentMusic.duration === "number"
+                        ? currentMusic.duration
                         : 1)) *
                     100
                   }
-                  onChange={onSeek}
+                  onChange={handleSeek}
                   tooltip={{ formatter }}
                   step={0.1}
-                  // autoFocus={true}
                   style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
                 />
                 <Text style={{ fontSize: "12px", color: "#888" }}>
                   {formatTime(
-                    typeof currentSong.duration === "number"
-                      ? currentSong.duration
+                    typeof currentMusic.duration === "number"
+                      ? currentMusic.duration
                       : 0
                   )}
                 </Text>
@@ -154,8 +184,6 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                 color="pink"
                 style={{ padding: "5px" }}
                 onClick={onSave}
-                // href={currentSong.play_url}
-                // target="_blank"
               >
                 <DownloadOutlined style={{ color: "#e87997" }} />
               </a>

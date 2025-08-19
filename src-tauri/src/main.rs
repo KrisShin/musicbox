@@ -1,11 +1,10 @@
+// src-tauri/src/main.rs
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+// [核心改动] 直接从我们的库中 use 所有东西
+use musicbox_lib;
+
 fn main() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    musicbox_lib::run();
 }

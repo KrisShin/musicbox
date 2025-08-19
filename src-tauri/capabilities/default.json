@@ -11,11 +11,14 @@
       "identifier": "http:default",
       "allow": [
         "https://www.gequhai.net/**",
-        "https://*.kuwo.cn/**"
+        "https://www.gequbao.com/**",
+        "https://*.kuwo.cn/**",
+        "https://*.gitee.com/KrisShin/musicbox**"
       ]
     },
     "dialog:default",
     "fs:allow-write-file",
+    "clipboard-manager:allow-write-text",
     {
       "identifier": "fs:scope",
       "allow": [
