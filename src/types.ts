@@ -39,3 +39,11 @@ export interface PlaylistMusic {
   music: Music; // 歌曲信息
   position: number; // 在歌单中的位置
 }
+
+export interface UpdateInfo {
+  update_available: boolean;
+  version: string;
+  notes: string;
+  download_url: string;
+  download_password: string;
+}

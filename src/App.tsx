@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layout, Typography, Image, Flex } from 'antd';
+import { Layout, Typography, Image, Flex, Modal } from 'antd';
 import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
@@ -8,6 +8,9 @@ import './App.css';
 import { useAppStore } from './store';
 import { Content } from 'antd/es/layout/layout';
 import FloatPlayer from './components/FloatPlayer';
+import { useGlobalMessage } from './components/MessageHook';
+import { UpdateInfo } from './types';
+import { invoke } from '@tauri-apps/api/core';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -40,6 +43,8 @@ const App = () => {
     setCurrentTime, // 获取新的 action
     setDuration,   // 获取新的 action
   } = useAppStore();
+
+  const messageApi = useGlobalMessage();
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -130,6 +135,58 @@ const App = () => {
       // ... remove listeners
     };
   }, [currentMusic, handleNext]);
+
+  useEffect(() => {
+    // 定义一个异步函数来执行检查
+    const checkForUpdates = async () => {
+      try {
+        const result: UpdateInfo = await invoke('check_for_updates');
+
+        if (result.update_available) {
+          // 如果有更新，弹出 antd 的确认对话框
+          Modal.confirm({
+            title: `发现新版本 v${result.version}`,
+            content: (
+              <div>
+                <p>有新的更新可用，是否立即下载？</p>
+                <p><strong>更新日志:</strong></p>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{result.notes}</p>
+              </div>
+            ),
+            okText: '前往下载',
+            cancelText: '忽略此版',
+            onOk: () => {
+              // 用户点击“前往下载”
+              if (result.download_url) {
+                open(result.download_url).catch(err => {
+                  console.error("无法打开下载链接:", err);
+                  messageApi.error("无法打开下载链接，请手动复制。");
+                });
+              } else {
+                messageApi.error("下载链接无效！");
+              }
+            },
+            onCancel: () => {
+              // 用户点击“忽略此版”
+              invoke('ignore_update', { version: result.version })
+                .then(() => messageApi.info(`已忽略版本 v${result.version}，不再提醒。`))
+                .catch(err => console.error("忽略版本失败:", err));
+            },
+          });
+        } else {
+          console.log("检查更新：当前已是最新版本或新版本已被忽略。");
+        }
+      } catch (error) {
+        console.error("检查更新失败:", error);
+        // 在生产环境中可以静默失败，不打扰用户
+      }
+    };
+
+    // 延迟一秒执行，避免阻塞应用启动
+    const timer = setTimeout(checkForUpdates, 1000);
+
+    return () => clearTimeout(timer); // 组件卸载时清理定时器
+  }, [messageApi]); // 依赖 messageApi
 
   return (
     // 1. [核心改动] 将根 Layout 设置为固定屏幕高度的 Flex 容器

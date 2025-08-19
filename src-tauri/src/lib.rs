@@ -13,7 +13,6 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        
         // [重要] 添加回 setup 钩子，用于初始化数据库
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -23,17 +22,11 @@ pub fn run() {
                     .expect("数据库初始化失败");
                 app_handle.manage(pool);
             });
-            
-            let app_handle_for_updater = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                updater::check_for_updates(app_handle_for_updater.app()).await;
-            });
+
             Ok(())
         })
-
         // [修改] 直接调用我们封装好的 handler 生成函数
         .invoke_handler(commands::get_command_handler())
-        
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

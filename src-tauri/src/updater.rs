@@ -1,66 +1,97 @@
 // src-tauri/src/updater.rs
 
-use tauri::{App, Manager, WebviewWindow};
-use serde::Deserialize;
+use crate::db;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
 
-// 将相关的结构体也一并移到这里
+// 1. [新增] 定义一个清晰的、将返回给前端的数据结构
+#[derive(Serialize, Debug, Clone)]
+pub struct UpdateInfo {
+    pub update_available: bool,
+    pub version: String,
+    pub notes: String,
+    pub download_url: String,
+    pub download_password: String, // 新增下载密码字段
+}
+
+// 2. [新增] 用于解析 package.json 的结构体
 #[derive(Deserialize, Debug)]
 struct PackageJson {
     version: String,
+    #[serde(rename = "releaseNotes")] // <-- [新增] 允许解析驼峰命名的 releaseNotes
+    release_notes: Option<String>,
 }
 
-// 将函数声明为 pub，以便在其他模块中调用
-pub async fn check_for_updates(app: App) {
+/// [重构] 核心检查逻辑，现在返回一个结构体给前端
+pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
     let current_version = app.package_info().version.to_string();
-    // let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/release/package.json";
+    // [修改] 使用您提供的 Gitee raw 链接
     let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/web/package.json";
-    
+
+    // [修改] 使用您指定的固定网盘地址
+    let static_download_url = "https://wwgv.lanzout.com/b0mbvaj4d";
+    let static_download_password = "2pn7"; // <-- 请替换为您自己的网盘链接
+
     println!("正在检查更新，当前版本: v{}", current_version);
 
-    let client = match app.http_client().build() {
-        Ok(client) => client,
-        Err(e) => {
-            eprintln!("创建 HTTP 客户端失败: {}", e);
-            return;
-        }
-    };
-    
-    let response = client.get(package_json_url).send().await;
+    let client = app.http_client().build().map_err(|e| e.to_string())?;
+    let response = client
+        .get(package_json_url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
 
-    if let Ok(res) = response {
-        if let Ok(pkg) = res.json::<PackageJson>().await {
-            println!("获取到最新版本: v{}", pkg.version);
-            
-            if pkg.version.as_str() > current_version.as_str() {
-                let new_version = pkg.version;
-                
-                let download_url = {
-                    let cos_base_url = "https://YOUR_COS_URL"; // 替换为您的地址
-                    
-                    #[cfg(target_os = "windows")]
-                    { format!("{}/v{}/musicbox_{}_x64_en-US.msi.zip", cos_base_url, new_version, new_version) }
-                    #[cfg(target_os = "linux")]
-                    { format!("{}/v{}/musicbox_{}_amd64.AppImage.tar.gz", cos_base_url, new_version, new_version) }
-                    #[cfg(target_os = "macos")]
-                    { format!("{}/v{}/musicbox_{}_x64.dmg.tar.gz", cos_base_url, new_version, new_version) }
-                    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-                    { "https://gitee.com/YOUR_USERNAME/musicbox/releases" }
-                };
+    if !response.status().is_success() {
+        return Err("无法获取版本信息".to_string());
+    }
 
-                let main_window = app.get_webview_window("main").unwrap();
-                let _ = main_window.dialog().message(format!(
-                    "发现新版本 v{}！",
-                    new_version
-                )).title("版本更新").ok_button("前往下载").show(move |ok| {
-                    if ok {
-                        let _ = app.shell().open(&download_url, None);
-                    }
-                });
-            } else {
-                println!("当前已是最新版本。");
-            }
+    let pkg = response
+        .json::<PackageJson>()
+        .await
+        .map_err(|e| e.to_string())?;
+    let latest_version = pkg.version;
+
+    println!("获取到最新版本: v{}", latest_version);
+
+    // 3. [核心逻辑] 版本比较
+    if latest_version.as_str() > current_version.as_str() {
+        // 发现新版本，查询是否被忽略
+        let pool = app.state::<db::DbPool>();
+        let ignored_version = db::get_app_setting(pool.inner(), "ignore_version".to_string())
+            .await
+            .map_err(|e| e.to_string())?
+            .unwrap_or_default(); // 如果不存在，默认为空字符串
+
+        if latest_version == ignored_version {
+            // 版本已被忽略
+            println!("最新版本 v{} 已被用户忽略。", latest_version);
+            Ok(UpdateInfo {
+                update_available: false,
+                version: latest_version,
+                notes: "".to_string(),
+                download_url: "".to_string(),
+                download_password: "".to_string(),
+            })
+        } else {
+            // 发现新版本且未被忽略
+            println!("发现新版本 v{}！", latest_version);
+            Ok(UpdateInfo {
+                update_available: true,
+                version: latest_version,
+                notes: pkg.release_notes.unwrap_or_else(|| "优化了一些已知问题".to_string()),
+                download_url: static_download_url.to_string(),
+                download_password: static_download_password.to_string(),
+            })
         }
     } else {
-        eprintln!("检查更新失败：无法访问 Gitee 上的 package.json");
+        // 当前已是最新版本
+        println!("当前已是最新版本。");
+        Ok(UpdateInfo {
+            update_available: false,
+            version: current_version,
+            notes: "".to_string(),
+            download_url: "".to_string(),
+            download_password: "".to_string(),
+        })
     }
 }
