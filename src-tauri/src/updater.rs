@@ -3,6 +3,7 @@
 use crate::db;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_http::reqwest;
 
 // 1. [新增] 定义一个清晰的、将返回给前端的数据结构
 #[derive(Serialize, Debug, Clone)]
@@ -26,7 +27,7 @@ struct PackageJson {
 pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
     let current_version = app.package_info().version.to_string();
     // [修改] 使用您提供的 Gitee raw 链接
-    let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/web/package.json";
+    let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/release/package.json";
 
     // [修改] 使用您指定的固定网盘地址
     let static_download_url = "https://wwgv.lanzout.com/b0mbvaj4d";
@@ -34,21 +35,23 @@ pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
 
     println!("正在检查更新，当前版本: v{}", current_version);
 
-    let client = app.http_client().build().map_err(|e| e.to_string())?;
-    let response = client
-        .get(package_json_url)
-        .send()
+    let response = reqwest::get(package_json_url)
         .await
         .map_err(|e| e.to_string())?;
 
+    // 1. 首先，检查响应的状态码
     if !response.status().is_success() {
-        return Err("无法获取版本信息".to_string());
+        // 如果请求失败，返回错误
+        return Err(format!("无法获取版本信息，状态码: {}", response.status()));
     }
 
+    // 2. 然后，在确认请求成功后，再将响应体解析为 JSON
+    // .json() 方法会消耗 response 对象并返回解析后的数据
     let pkg = response
-        .json::<PackageJson>()
+        .json::<PackageJson>() // 假设 PackageJson 是您定义好的结构体
         .await
         .map_err(|e| e.to_string())?;
+
     let latest_version = pkg.version;
 
     println!("获取到最新版本: v{}", latest_version);
@@ -78,7 +81,9 @@ pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
             Ok(UpdateInfo {
                 update_available: true,
                 version: latest_version,
-                notes: pkg.release_notes.unwrap_or_else(|| "优化了一些已知问题".to_string()),
+                notes: pkg
+                    .release_notes
+                    .unwrap_or_else(|| "优化了一些已知问题".to_string()),
                 download_url: static_download_url.to_string(),
                 download_password: static_download_password.to_string(),
             })

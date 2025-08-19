@@ -193,7 +193,12 @@ export const useAppStore = create<AppState>()(
             return;
           case 'shuffle':
             // 随机播放：获取一个随机索引
-            nextIndex = Math.floor(Math.random() * playQueue.length);
+            if (playQueue.length <= 1) break; // 如果只有一首歌，直接返回
+            let newIndex = Math.floor(Math.random() * playQueue.length);
+            while (newIndex === nextIndex) {
+              newIndex = Math.floor(Math.random() * playQueue.length);
+            }
+            nextIndex = newIndex;
             break;
           case 'sequence':
           default:
@@ -205,6 +210,7 @@ export const useAppStore = create<AppState>()(
             }
             break;
         }
+        console.log("当前音乐", playQueue[playingMusicIndex].title, "下一首音乐", playQueue[nextIndex].title, "播放模式", playMode);
         _playIndexMusic(nextIndex);
       },
       handlePrev: () => {

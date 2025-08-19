@@ -101,13 +101,13 @@ async fn get_app_setting(
 }
 
 #[tauri::command]
-pub async fn check_for_updates(app_handle: AppHandle) -> Result<updater::UpdateInfo, String> {
+async fn check_for_updates(app_handle: AppHandle) -> Result<updater::UpdateInfo, String> {
     updater::check_for_updates(&app_handle).await
 }
 
 // 4. [新增] 忽略指定版本的 command
 #[tauri::command]
-pub async fn ignore_update(
+async fn ignore_update(
     version: String,
     state: tauri::State<'_, db::DbPool>,
 ) -> Result<(), String> {

@@ -13,6 +13,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         // [重要] 添加回 setup 钩子，用于初始化数据库
         .setup(|app| {
             let app_handle = app.handle().clone();

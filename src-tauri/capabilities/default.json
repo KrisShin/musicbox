@@ -18,6 +18,7 @@
     },
     "dialog:default",
     "fs:allow-write-file",
+    "clipboard-manager:allow-write-text",
     {
       "identifier": "fs:scope",
       "allow": [

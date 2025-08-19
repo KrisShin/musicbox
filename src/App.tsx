@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layout, Typography, Image, Flex, Modal } from 'antd';
+import { Layout, Typography, Image, Flex, Button } from 'antd';
 import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
@@ -8,9 +8,10 @@ import './App.css';
 import { useAppStore } from './store';
 import { Content } from 'antd/es/layout/layout';
 import FloatPlayer from './components/FloatPlayer';
-import { useGlobalMessage } from './components/MessageHook';
+import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { UpdateInfo } from './types';
 import { invoke } from '@tauri-apps/api/core';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -45,6 +46,7 @@ const App = () => {
   } = useAppStore();
 
   const messageApi = useGlobalMessage();
+  const modalApi = useGlobalModal();
 
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -57,10 +59,10 @@ const App = () => {
       if (audio.src !== currentMusic.play_url) {
         audio.src = currentMusic.play_url;
         // 当源改变时，我们期望它能自动播放
-        if (isPlaying) {
+        if (isPlaying && !audio.played) {
           audio.play().catch(e => console.error("自动播放失败:", e));
         }
-      }
+      } ` `
     } else {
       // 如果没有歌曲或播放链接，则清空
       audio.src = "";
@@ -120,73 +122,108 @@ const App = () => {
 
     if (audio.src !== currentMusic.play_url) {
       audio.src = currentMusic.play_url;
+      if (isPlaying && !audio.played) {
+        audio.play().catch(e => console.error("自动播放失败:", e));
+      }
     }
 
-    const handleTimeUpdate = () => {
-      // 注意：currentTime 不再需要全局 state，可以直接从 ref 读取用于 PlayerBar
-      // 如果其他组件也需要，可以考虑放回 store
-    };
-    // const handleEnded = () => handleNext();
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    // audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      // ... remove listeners
-    };
   }, [currentMusic, handleNext]);
 
   useEffect(() => {
-    // 定义一个异步函数来执行检查
     const checkForUpdates = async () => {
       try {
         const result: UpdateInfo = await invoke('check_for_updates');
 
         if (result.update_available) {
-          // 如果有更新，弹出 antd 的确认对话框
-          Modal.confirm({
+
+          // 2. 捕获 modal 实例，以便手动关闭
+          let modalInstance: any = null;
+
+          // 定义各个按钮的点击事件处理函数
+          const handleGoNow = async () => {
+            const downloadUrl = result?.download_url;
+            if (downloadUrl) {
+              await copy2Clipboard()
+              try {
+                const newWindow = open(downloadUrl);
+                if (!newWindow) {
+                  messageApi.error("无法打开新窗口，可能被浏览器拦截了。");
+                }
+              } catch (err) {
+                console.error("无法打开下载链接:", err);
+                messageApi.error("无法打开下载链接，请手动复制。");
+              }
+            } else {
+              messageApi.error("下载链接无效！");
+            }
+            modalInstance?.destroy(); // 关闭弹窗
+          };
+
+          const handleIgnoreVersion = () => {
+            invoke('ignore_update', { version: result.version })
+              .then(() => messageApi.info(`已忽略版本 v${result.version}，不再提醒。`))
+              .catch(err => console.error("忽略版本失败:", err));
+            modalInstance?.destroy(); // 关闭弹窗
+          };
+
+          const handleRemindLater = () => {
+            modalInstance?.destroy(); // 只关闭弹窗，不做任何事
+          };
+
+          const copy2Clipboard = async () => {
+            try {
+              await writeText(result.download_password!);
+              messageApi.success('密码已复制到剪贴板！');
+            } catch (err) {
+              console.error('复制失败:', err);
+              messageApi.error('复制失败，请手动复制。');
+            }
+          }
+
+          // 3. 使用 modal 实例，并传入自定义 footer
+          modalInstance = modalApi.confirm({
             title: `发现新版本 v${result.version}`,
+            // content 部分保持不变
             content: (
               <div>
                 <p>有新的更新可用，是否立即下载？</p>
                 <p><strong>更新日志:</strong></p>
                 <p style={{ whiteSpace: 'pre-wrap' }}>{result.notes}</p>
+                {result.download_password && (
+                  <p>
+                    <strong>下载密码: </strong>
+                    <span
+                      onClick={copy2Clipboard}
+                      style={{ color: "#F08080", cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
+                    >
+                      {result.download_password}
+                    </span>
+                  </p>
+                )}
               </div>
             ),
-            okText: '前往下载',
-            cancelText: '忽略此版',
-            onOk: () => {
-              // 用户点击“前往下载”
-              if (result.download_url) {
-                open(result.download_url).catch(err => {
-                  console.error("无法打开下载链接:", err);
-                  messageApi.error("无法打开下载链接，请手动复制。");
-                });
-              } else {
-                messageApi.error("下载链接无效！");
-              }
-            },
-            onCancel: () => {
-              // 用户点击“忽略此版”
-              invoke('ignore_update', { version: result.version })
-                .then(() => messageApi.info(`已忽略版本 v${result.version}，不再提醒。`))
-                .catch(err => console.error("忽略版本失败:", err));
-            },
+            // 4. 移除 okText, cancelText, onOk, onCancel，使用 footer 完全接管
+            footer: (
+              <Flex justify='end' gap="small" style={{ marginTop: '16px' }}>
+                <Button type='text' onClick={handleIgnoreVersion}>忽略此版本</Button>
+                <Button onClick={handleRemindLater}>下次再说</Button>
+                <Button type="primary" onClick={handleGoNow}>
+                  立即前往
+                </Button>
+              </Flex>
+            ),
           });
         } else {
           console.log("检查更新：当前已是最新版本或新版本已被忽略。");
         }
       } catch (error) {
         console.error("检查更新失败:", error);
-        // 在生产环境中可以静默失败，不打扰用户
       }
     };
 
-    // 延迟一秒执行，避免阻塞应用启动
     const timer = setTimeout(checkForUpdates, 1000);
-
-    return () => clearTimeout(timer); // 组件卸载时清理定时器
-  }, [messageApi]); // 依赖 messageApi
+    return () => clearTimeout(timer);
+  }, [messageApi, modalApi]);
 
   return (
     // 1. [核心改动] 将根 Layout 设置为固定屏幕高度的 Flex 容器

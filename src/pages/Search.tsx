@@ -25,7 +25,7 @@ const SearchPage: React.FC = () => {
       messageApi.success(`搜索 "${keyword}" 中...`, 1.5);
       await handleSearch(keyword).then(() => {
         messageApi.success(`搜索 "${keyword}" 成功`);
-      });
+      })
     } catch (error: any) {
       // 在这里捕获 store 抛出的错误，并调用 messageApi
       if (error.message === "404") {
