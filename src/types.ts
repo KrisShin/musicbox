@@ -1,11 +1,12 @@
 // src/types.ts
 
 export interface MusicDetail {
+  play_id?: string;
   lyric?: string;
-  download_mp3?: string;
-  download_extra?: string;
   cover_url?: string;
   duration?: number;
+  download_mp3?: string;
+  download_extra?: string;
   download_mp3_id?: string;
   play_url?: string;
 }

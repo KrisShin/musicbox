@@ -85,6 +85,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
         className="player-bg"
         style={{ backgroundImage: `url(${currentMusic.cover_url})` }}
       />
+      {/* {currentMusic.cover_url} */}
       <div className="player-bg-overlay" />
 
       {/* 2. 页面内容容器 */}
@@ -152,7 +153,6 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
             <Button type="text" shape="circle" icon={<DownloadOutlined className="control-icon-secondary" />} onClick={handleSave} />
           </Flex>
         </Flex>
-
       </div>
     </div>
   );

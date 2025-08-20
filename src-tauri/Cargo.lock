@@ -2344,8 +2344,10 @@ dependencies = [
 
 [[package]]
 name = "musicbox"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
+ "base64 0.22.1",
+ "semver",
  "serde",
  "serde_json",
  "sqlx",
