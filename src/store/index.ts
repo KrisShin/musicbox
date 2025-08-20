@@ -150,12 +150,12 @@ export const useAppStore = create<AppState>()(
         try {
           const download_music = await musicDetail(music)
 
-          // 只需调用一个 invoke 命令，传入所需参数
-          const save_path = await invoke<string>('download_music_file', {
+          const save_path = await invoke<string>('download_music', {
             url: download_music.play_url,
             title: download_music.title,
             artist: download_music.artist,
           });
+          // download_music.play_url && await open(download_music.play_url);
           return save_path;
         } catch (error: any) {
           console.error("调用下载命令失败:", error);

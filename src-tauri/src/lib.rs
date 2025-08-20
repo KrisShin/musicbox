@@ -1,11 +1,11 @@
 // src-tauri/src/lib.rs
 
 pub mod commands;
-pub mod my_util;
 pub mod db;
 pub mod ffi;
-pub mod updater;
 pub mod model;
+pub mod my_util;
+pub mod updater;
 
 use tauri::Manager; // 确保导入 Manager
 
@@ -14,7 +14,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_share::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         // [重要] 添加回 setup 钩子，用于初始化数据库
         .setup(|app| {

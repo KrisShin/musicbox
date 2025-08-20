@@ -141,6 +141,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         check_for_updates,
         ignore_update,
         get_music_detail_by_id,
-        my_util::download_music_file
+        my_util::download_music,
     ]
 }

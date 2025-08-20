@@ -1,6 +1,8 @@
 use base64::{Engine as _, engine::general_purpose};
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_http::reqwest;
+use tauri_plugin_share::ShareExt;
 use tokio::fs;
 
 // 这是一个内部辅助函数，不再暴露给前端
@@ -34,47 +36,77 @@ pub async fn img_url_to_b64(url: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn download_music_file(
-    app_handle: AppHandle, // <-- 添加 AppHandle 参数
+pub async fn download_music(
+    app_handle: AppHandle,
     url: String,
     title: String,
     artist: String,
 ) -> Result<String, String> {
-    let download_path = app_handle
-        .path()
-        .download_dir()
-        .or_else(|_| Err("无法获取下载目录".to_string()))?;
+    // --- 平台条件编译 ---
 
-    let base_filename = format!("{} - {}.mp3", title, artist);
-    let mut final_path = download_path.join(&base_filename);
-    let mut counter = 1;
+    // 目标平台是移动端 (Android/iOS)
+    #[cfg(mobile)]
+    {
+        // 1. 先下载到应用私有的缓存目录，这里我们总是有权限
+        let cache_dir = app_handle
+            .path()
+            .app_cache_dir()
+            .or_else(|_| Err("无法获取下载目录".to_string()))?;
 
-    while final_path.exists() {
-        let new_filename = format!("{} - {} ({}).mp3", title, artist, counter);
-        final_path = download_path.join(new_filename);
-        counter += 1;
+        // 确保文件名合法
+        let filename = format!("{} - {}.mp3", title, artist);
+        let temp_file_path = cache_dir.join(filename);
+
+        // (下载逻辑与之前类似)
+        let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("网络请求失败: {}", response.status()));
+        }
+        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+        fs::write(&temp_file_path, &bytes)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // 2. (关键) 使用 share 插件分享已下载的文件
+        let files_to_share: Vec<PathBuf> = vec![temp_file_path];
+
+        tauri_plugin_share::share_file(&app_handle, files_to_share).map_err(|e| e.to_string())?;
+
+        Ok(format!("Download/{}", filename))
     }
 
-    let response = reqwest::get(&url)
-        .await
-        .map_err(|e| format!("网络请求失败: {}", e))?;
+    // 目标平台是桌面端 (Windows/macOS/Linux)
+    #[cfg(not(mobile))]
+    {
+        // 使用您之前在 Windows 上测试成功的静默下载逻辑
+        let download_path = app_handle
+            .path()
+            .download_dir()
+            .or_else(|_| Err("无法获取下载目录".to_string()))?;
 
-    if !response.status().is_success() {
-        return Err(format!("下载请求失败，状态: {}", response.status()));
+        let base_filename = format!("{} - {}.mp3", title, artist);
+        let mut final_path = download_path.join(&base_filename);
+        let mut counter = 1;
+
+        while final_path.exists() {
+            let new_filename = format!("{} - {} ({}).mp3", title, artist, counter);
+            final_path = download_path.join(new_filename);
+            counter += 1;
+        }
+
+        let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("网络请求失败: {}", response.status()));
+        }
+        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+        fs::write(&final_path, &bytes)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        println!("文件成功下载至: {:?}", final_path);
+        Ok(final_path
+            .to_str()
+            .ok_or("无法转换路径为字符串".to_string())?
+            .to_string())
     }
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("读取响应体失败: {}", e))?;
-
-    fs::write(&final_path, &bytes)
-        .await
-        .map_err(|e| format!("文件写入失败: {:?}", e))?;
-
-    println!("文件成功下载至: {:?}", final_path);
-    Ok(final_path
-        .to_str()
-        .ok_or("无法转换路径为字符串".to_string())?
-        .to_string())
 }

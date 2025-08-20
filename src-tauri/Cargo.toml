@@ -1,6 +1,6 @@
 [package]
 name = "musicbox"
-version = "1.1.2"
+version = "1.1.3"
 description = "MusicBox multi-platform by Tauri"
 authors = ["Kris"]
 edition = "2024"
@@ -30,3 +30,4 @@ tauri-plugin-clipboard-manager = "2.3.0"
 base64 = "0.22.1"
 semver = { version = "1.0.26", features = ["serde"] }
 tokio = { version = "1.47.1", features= ["full"] }
+tauri-plugin-share = "2.0.5"
