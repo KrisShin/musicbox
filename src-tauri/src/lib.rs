@@ -1,9 +1,11 @@
 // src-tauri/src/lib.rs
 
 pub mod commands;
+pub mod my_util;
 pub mod db;
 pub mod ffi;
 pub mod updater;
+pub mod model;
 
 use tauri::Manager; // 确保导入 Manager
 

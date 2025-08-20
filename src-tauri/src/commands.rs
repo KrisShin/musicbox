@@ -1,9 +1,8 @@
 // src-tauri/src/commands.rs
 
 use crate::{
-    db::{
-        self, DbPool, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
-    },
+    db::{self, DbPool},
+    model::{Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload},
     updater,
 };
 
@@ -116,6 +115,16 @@ async fn ignore_update(version: String, state: tauri::State<'_, db::DbPool>) -> 
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn get_music_detail_by_id(
+    song_id: String,
+    state: tauri::State<'_, db::DbPool>,
+) -> Result<Option<Music>, String> {
+    db::get_music_detail_by_id(state.inner(), song_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
         save_music,
@@ -130,5 +139,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         get_app_setting,
         check_for_updates,
         ignore_update,
+        get_music_detail_by_id,
     ]
 }

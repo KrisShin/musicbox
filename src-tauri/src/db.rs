@@ -1,28 +1,17 @@
-use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, migrate::Migrator};
+use sqlx::{Execute, QueryBuilder, SqlitePool, migrate::Migrator};
 use std::{fs::OpenOptions, path::PathBuf};
 use tauri::{AppHandle, Manager};
+
+use crate::model::{
+    ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
+    UpdateDetailPayload,
+};
+
+use super::my_util::img_url_to_b64;
 
 pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub type DbPool = SqlitePool;
-
-#[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
-pub struct Music {
-    pub song_id: String,
-    pub title: String,
-    pub artist: String,
-    pub url: String,
-
-    pub lyric: Option<String>,
-    pub cover_url: Option<String>,
-    #[serde(rename = "duration")]
-    pub duration_secs: Option<f64>,
-    pub play_url: Option<String>,
-    pub download_mp3: Option<String>,
-    pub download_extra: Option<String>,
-    pub download_mp3_id: Option<String>,
-}
 
 pub async fn init_db_pool(app_handle: &AppHandle) -> Result<DbPool, Box<dyn std::error::Error>> {
     let app_data_dir = app_handle
@@ -95,49 +84,139 @@ pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sql
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
-pub struct UpdateDetailPayload {
-    pub song_id: String,
-    pub lyric: Option<String>,
-    pub cover_url: Option<String>,
-    #[serde(rename = "duration")]
-    pub duration_secs: Option<f64>,
-    pub play_url: Option<String>,
-    pub download_mp3: Option<String>,
-    pub download_extra: Option<String>,
-    pub download_mp3_id: Option<String>,
-}
-
 pub async fn update_music_detail(
     pool: &DbPool,
     payload: UpdateDetailPayload,
 ) -> Result<(), sqlx::Error> {
-    let sql = r#"
-        UPDATE music SET
-            lyric = ?, cover_url = ?, duration_secs = ?, play_url = ?,
-            download_mp3 = ?, download_extra = ?, download_mp3_id = ?
-        WHERE song_id = ?
-    "#;
+    // 1. 先查询数据库中已有的数据
+    let existing_data: Option<ExistingMusicDetail> = sqlx::query_as(
+        "SELECT 
+                lyric, cover_url, duration_secs, play_url, 
+                download_mp3, download_extra, download_mp3_id, play_id 
+            FROM music WHERE song_id = ?",
+    )
+    .bind(&payload.song_id)
+    .fetch_optional(pool)
+    .await?;
+    print!("查询数据库");
 
-    sqlx::query(sql)
-        .bind(&payload.lyric)
-        .bind(&payload.cover_url)
-        .bind(payload.duration_secs)
-        .bind(&payload.play_url)
-        .bind(&payload.download_mp3)
-        .bind(&payload.download_extra)
-        .bind(&payload.download_mp3_id)
-        .bind(&payload.song_id)
-        .execute(pool)
-        .await?;
+    // 如果歌曲不存在，直接返回错误或根据业务逻辑处理
+    let existing_data = match existing_data {
+        Some(data) => data,
+        None => return Err(sqlx::Error::RowNotFound),
+    };
+    print!("判断是否存在");
 
+    // 2. 使用 QueryBuilder 动态构建 UPDATE 语句
+    let mut builder: QueryBuilder<sqlx::Sqlite> = QueryBuilder::new("UPDATE music SET ");
+    let mut separator = ""; // 用于处理字段间的逗号
+
+    // 强制更新 play_url
+    if let Some(play_url) = &payload.play_url {
+        builder
+            .push(separator)
+            .push("play_url = ")
+            .push_bind(play_url);
+        separator = ", ";
+    }
+    print!("拼接 play_url");
+
+    // --- 按需更新其他字段 ---
+    if payload.lyric.is_some() && existing_data.lyric.is_none() {
+        builder
+            .push(separator)
+            .push("lyric = ")
+            .push_bind(payload.lyric.as_ref());
+        separator = ", ";
+    }
+    print!("拼接 lyric");
+
+    if payload.play_id.is_some() && existing_data.play_id.is_none() {
+        builder
+            .push(separator)
+            .push("play_id = ")
+            .push_bind(payload.play_id.as_ref());
+        separator = ", ";
+    }
+    print!("拼接 play_id");
+
+    if payload.duration_secs.is_some() && existing_data.duration_secs.is_none() {
+        builder
+            .push(separator)
+            .push("duration_secs = ")
+            .push_bind(payload.duration_secs);
+        separator = ", ";
+    }
+    print!("拼接 duration_secs");
+    // --- 特殊处理 cover_url ---
+    if let Some(new_cover_url) = &payload.cover_url {
+        // 仅当数据库中没有 cover_url 或者cover_url以http开头(旧数据)时，才进行转换和更新
+        let should_update_cover = match existing_data.cover_url.as_deref() {
+            None => true,
+            Some(url) => url.starts_with("http"),
+        };
+        if should_update_cover {
+            match img_url_to_b64(new_cover_url).await {
+                Ok(base64_data) => {
+                    builder
+                        .push(separator)
+                        .push("cover_url = ")
+                        .push_bind(base64_data);
+                    separator = ", ";
+                }
+                Err(e) => {
+                    // 如果转换失败，打印错误日志，但不中断整个更新流程
+                    eprintln!(
+                        "Error converting cover_url to base64 for song {}: {}",
+                        &payload.song_id, e
+                    );
+                }
+            }
+        }
+    }
+    print!("拼接 cover_url");
+
+    // --- 更新剩余的 download 字段 (如果需要，也可以添加按需更新逻辑) ---
+    if payload.download_mp3.is_some() {
+        builder
+            .push(separator)
+            .push("download_mp3 = ")
+            .push_bind(payload.download_mp3.as_ref());
+        separator = ", ";
+    }
+    print!("拼接 download_mp3");
+
+    if payload.download_extra.is_some() {
+        builder
+            .push(separator)
+            .push("download_extra = ")
+            .push_bind(payload.download_extra.as_ref());
+        separator = ", ";
+    }
+    print!("拼接 download_extra");
+    if payload.download_mp3_id.is_some() {
+        builder
+            .push(separator)
+            .push("download_mp3_id = ")
+            .push_bind(payload.download_mp3_id.as_ref());
+    }
+    print!("拼接 download_mp3_id");
+
+    // 3. 如果没有任何字段需要更新，则直接返回
+    if separator.is_empty() && payload.download_mp3_id.is_none() {
+        return Ok(());
+    }
+    print!("判断是否更新");
+
+    // 4. 完成并执行 SQL 查询
+    builder
+        .push(" WHERE song_id = ")
+        .push_bind(&payload.song_id);
+    let query = builder.build();
+    print!("构建查询: {}", query.sql());
+    query.execute(pool).await?;
+    print!("执行查询");
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ToggleMusicPayload {
-    pub playlist_id: Option<i64>,
-    pub song_ids: Vec<String>,
 }
 
 pub async fn toggle_music_in_playlist(
@@ -250,19 +329,6 @@ pub async fn rename_playlist(
     Ok(())
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct PlaylistInfo {
-    pub id: i64,
-    pub name: String,
-    pub cover_path: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
-    #[sqlx(rename = "song_count")]
-    pub song_count: i64,
-
-    pub is_in: bool,
-}
-
 pub async fn get_all_playlists(
     pool: &DbPool,
     song_id: Option<String>,
@@ -293,17 +359,6 @@ pub async fn get_all_playlists(
 
     Ok(playlists)
 }
-
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct PlaylistMusic {
-    #[sqlx(flatten)]
-    pub music: Music,
-
-    pub position: i64,
-    pub added_to_list_at: String,
-}
-
-///
 
 pub async fn get_music_by_playlist_id(
     pool: &DbPool,
@@ -361,4 +416,17 @@ pub async fn get_app_setting(pool: &DbPool, key: String) -> Result<Option<String
 
     // .map 将 Option<(String,)> 转换为 Option<String>
     Ok(result.map(|(value,)| value))
+}
+
+pub async fn get_music_detail_by_id(
+    pool: &DbPool,
+    song_id: String,
+) -> Result<Option<Music>, String> {
+    let music_detail = sqlx::query_as::<_, Music>("SELECT * FROM music WHERE song_id = ?")
+        .bind(song_id)
+        .fetch_optional(pool) // 使用 .0 来访问内部的 pool
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(music_detail)
 }
