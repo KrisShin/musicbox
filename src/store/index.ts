@@ -2,11 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 import { Music } from '../types';
-import { BASE_URL, musicDetail, searchMusic } from '../util/crawler';
-import { downloadDir } from '@tauri-apps/api/path';
-import { save } from '@tauri-apps/plugin-dialog';
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { writeFile } from '@tauri-apps/plugin-fs';
+import { musicDetail, searchMusic } from '../util/crawler';
 
 
 // 1. 定义与后端交互的自定义存储引擎
@@ -54,7 +50,7 @@ interface AppState {
   _playIndexMusic: (index: number) => void;
   handleNext: () => void;
   handlePrev: () => void;
-  handleSave: () => void;
+  handleSave: (music: Music) => Promise<string>;
   handleClose: () => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
@@ -150,34 +146,20 @@ export const useAppStore = create<AppState>()(
         handleDetail(playQueue[index])
         startPlayback(playQueue, index);
       },
-      handleSave: async () => {
-        const music = get().currentMusic;
+      handleSave: async (music: Music) => {
         try {
-          if (!music?.play_url) throw new Error("未能获取下载链接");
-          const suggestedFilename = `${music.title} - ${music.artist}.mp3`;
-          const defaultPath = await downloadDir();
-          const filePath = await save({
-            title: "选择保存位置",
-            defaultPath: `${defaultPath}/${suggestedFilename}`,
-            filters: [{ name: "MP3 Audio", extensions: ["mp3"] }],
+          const download_music = await musicDetail(music)
+
+          // 只需调用一个 invoke 命令，传入所需参数
+          const save_path = await invoke<string>('download_music_file', {
+            url: download_music.play_url,
+            title: download_music.title,
+            artist: download_music.artist,
           });
-          if (!filePath) {
-            return;
-          }
-          const response = await tauriFetch(music.play_url, {
-            method: "GET",
-            headers: {
-              Referer: `${BASE_URL}${music.url}`,
-            },
-          });
-          if (!response.ok) {
-            throw new Error(`下载请求失败，状态: ${response.status}`);
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          await writeFile(filePath, uint8Array);
+          return save_path;
         } catch (error: any) {
-          throw new Error(`下载失败: ${error.message || "未知错误"}`)
+          console.error("调用下载命令失败:", error);
+          throw new Error(`${error}`);
         }
       },
 

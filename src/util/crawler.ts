@@ -86,43 +86,13 @@ export const searchMusic = async (
 
 export const musicDetail = async (music: Music): Promise<Music> => {
   try {
-    // ========================================================================
-    // 步骤 1: (快速路径) 尝试从数据库获取已有的详情
-    // ========================================================================
-    console.log(`(DB) 正在查询歌曲详情: ${music.title}`);
-    const dbMusic = await invoke<Music | null>('get_music_detail_by_id', {
-      songId: music.song_id,
-    });
-    debugger
     const fullDetailUrl = `${BASE_URL}${music.url}`;
 
-    // 如果数据库中存在，并且有 play_url，说明详情完整，直接返回
-    if (dbMusic && dbMusic.play_id && dbMusic.play_url) {
-      console.log(`(DB) 成功从数据库获取详情，跳过爬虫: ${music.title}`);
-      const play_url = await fetchMusicPlayUrl(music, fullDetailUrl)
-      const payload = {
-        ...dbMusic,
-        play_url: play_url,
-        download_mp3: play_url,
-      };
-
-      // 调用后端更新数据库
-      await invoke('update_music_detail', { payload: payload });
-      console.log(`(Crawler) 成功爬取并更新到数据库: ${dbMusic.title}`);
-      return dbMusic;
-    }
-
-    // ========================================================================
-    // 步骤 2: (慢速路径) 如果数据库中没有，执行爬虫
-    // ========================================================================
     console.log(`(Crawler) 数据库无详情，开始爬取: ${music.title}`);
-
     music = await fetchMusicDetailInfo(music, fullDetailUrl)
 
     const play_url = await fetchMusicPlayUrl(music, fullDetailUrl)
-    // --- 您原有的爬虫逻辑结束 ---
 
-    // 组装爬取到的详情，准备提交给后端
     const payload = {
       ...music,
       play_url: play_url,
@@ -133,9 +103,6 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     await invoke('update_music_detail', { payload: payload });
     console.log(`(Crawler) 成功爬取并更新到数据库: ${music.title}`);
 
-    // ========================================================================
-    // 步骤 3: 重新从数据库获取，确保数据源统一
-    // ========================================================================
     console.log(`(DB) 重新获取刚更新的详情: ${music.title}`);
     const finalMusic = await invoke<Music | null>('get_music_detail_by_id', {
       songId: music.song_id,
@@ -156,7 +123,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
   }
 };
 
-const fetchMusicPlayUrl = async (music: Music, fullDetailUrl: string): Promise<string | null> => {
+export const fetchMusicPlayUrl = async (music: Music, fullDetailUrl: string): Promise<string | null> => {
   const apiUrl = `${BASE_URL}/api/play-url`;
 
   const apiResponse = await tauriFetch(apiUrl, {
@@ -181,7 +148,7 @@ const fetchMusicPlayUrl = async (music: Music, fullDetailUrl: string): Promise<s
   return apiData.data.url;
 }
 
-const fetchMusicDetailInfo = async (music: Music, fullDetailUrl: string): Promise<Music> => {
+export const fetchMusicDetailInfo = async (music: Music, fullDetailUrl: string): Promise<Music> => {
   const response = await tauriFetch(fullDetailUrl, { method: "GET" });
   if (!response.ok) {
     throw new Error(`请求详情页失败: ${response.status}`);

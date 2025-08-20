@@ -14,6 +14,7 @@ import { useAppStore } from '../store';
 import LyricScroller from '../components/LyricScroller'; // 确保 LyricScroller 组件存在
 import './Player.css'; // 我们将为它创建专属的 CSS
 import { useGlobalMessage } from '../components/MessageHook';
+import { Music } from '../types';
 
 const { Title, Text } = Typography;
 
@@ -76,6 +77,25 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
         return <OrderedListOutlined className="control-icon-secondary" />;
     }
   };
+
+  const handleDownload = async (music?: Music) => {
+    if (!music) music = currentMusic
+    try {
+      messageApi.success(`开始下载 ${music.title}...`);
+      handleSave(music).then(async (save_path: string) => {
+        messageApi.destroy();
+        messageApi.success(`下载完成，文件保存至: ${save_path}`);
+      }).catch(error => {
+        messageApi.destroy();
+        messageApi.error(`下载失败: ${error.message || "未知错误"}`);
+        return;
+      });
+    } catch (error) {
+      messageApi.destroy();
+      messageApi.error(`下载失败: ${error || "未知错误"}`);
+      return;
+    }
+  }
 
   return (
     <div className="player-page-container">
@@ -150,7 +170,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
               onClick={handlePlayPause}
             />
             <Button type="text" shape="circle" icon={<StepForwardOutlined className="control-icon" />} onClick={handleNext} />
-            <Button type="text" shape="circle" icon={<DownloadOutlined className="control-icon-secondary" />} onClick={handleSave} />
+            <Button type="text" shape="circle" icon={<DownloadOutlined className="control-icon-secondary" />} onClick={() => handleDownload(currentMusic)} />
           </Flex>
         </Flex>
       </div>

@@ -1,5 +1,6 @@
 // src-tauri/src/commands.rs
 
+use super::my_util;
 use crate::{
     db::{self, DbPool},
     model::{Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload},
@@ -140,5 +141,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         check_for_updates,
         ignore_update,
         get_music_detail_by_id,
+        my_util::download_music_file
     ]
 }

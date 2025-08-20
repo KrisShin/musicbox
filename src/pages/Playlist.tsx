@@ -11,7 +11,7 @@ const { Title, Text } = Typography;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode } = useAppStore();
+  const { startPlayback, cyclePlayMode, handleSave } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
@@ -129,6 +129,24 @@ const PlaylistPage: React.FC = () => {
     startPlayback(musicQueue, startIndex).catch(error => console.error(error));
   }
 
+  const handleDownload = async (music: Music) => {
+    try {
+      messageApi.success(`开始下载 ${music.title}...`);
+      handleSave(music).then(async (save_path: string) => {
+        messageApi.destroy();
+        messageApi.success(`下载完成，文件保存至: ${save_path}`);
+      }).catch(error => {
+        messageApi.destroy();
+        messageApi.error(`下载失败: ${error.message || "未知错误"}`);
+        return;
+      });
+    } catch (error) {
+      messageApi.destroy();
+      messageApi.error(`下载失败: ${error || "未知错误"}`);
+      return;
+    }
+  }
+
   // --- 渲染 ---
 
   return (
@@ -180,7 +198,7 @@ const PlaylistPage: React.FC = () => {
                 className="song-list-item"
                 onClick={() => handlePlaySong(index)}
                 actions={[
-                  <Button type="text" shape="circle" icon={<DownloadOutlined />} onClick={(e) => { e.stopPropagation(); /* ... */ }} />,
+                  <Button type="text" shape="circle" icon={<DownloadOutlined />} onClick={(e) => { e.stopPropagation(); handleDownload(playlistSong.music) }} />,
                   // [新增] 移除按钮
                   <Button type="text" danger shape="circle" icon={<DeleteOutlined />} onClick={(e) => {
                     e.stopPropagation();
@@ -189,8 +207,8 @@ const PlaylistPage: React.FC = () => {
                 ]}
               >
                 <List.Item.Meta
-                  avatar={<Text style={{ width: '20px', textAlign: 'center' }}>{index + 1}</Text>}
-                  title={<Text ellipsis>{playlistSong.music.title}</Text>}
+                  avatar={<Avatar size={40} src={playlistSong.music.cover_url} />}
+                  title={<Text ellipsis>{index + 1}. {playlistSong.music.title}</Text>}
                   description={<Text ellipsis type="secondary">{playlistSong.music.artist}</Text>}
                 />
               </List.Item>

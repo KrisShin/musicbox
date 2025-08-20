@@ -1,4 +1,4 @@
-use sqlx::{Execute, QueryBuilder, SqlitePool, migrate::Migrator};
+use sqlx::{QueryBuilder, SqlitePool, migrate::Migrator};
 use std::{fs::OpenOptions, path::PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -98,14 +98,12 @@ pub async fn update_music_detail(
     .bind(&payload.song_id)
     .fetch_optional(pool)
     .await?;
-    print!("查询数据库");
 
     // 如果歌曲不存在，直接返回错误或根据业务逻辑处理
     let existing_data = match existing_data {
         Some(data) => data,
         None => return Err(sqlx::Error::RowNotFound),
     };
-    print!("判断是否存在");
 
     // 2. 使用 QueryBuilder 动态构建 UPDATE 语句
     let mut builder: QueryBuilder<sqlx::Sqlite> = QueryBuilder::new("UPDATE music SET ");
@@ -119,7 +117,6 @@ pub async fn update_music_detail(
             .push_bind(play_url);
         separator = ", ";
     }
-    print!("拼接 play_url");
 
     // --- 按需更新其他字段 ---
     if payload.lyric.is_some() && existing_data.lyric.is_none() {
@@ -129,7 +126,6 @@ pub async fn update_music_detail(
             .push_bind(payload.lyric.as_ref());
         separator = ", ";
     }
-    print!("拼接 lyric");
 
     if payload.play_id.is_some() && existing_data.play_id.is_none() {
         builder
@@ -138,7 +134,6 @@ pub async fn update_music_detail(
             .push_bind(payload.play_id.as_ref());
         separator = ", ";
     }
-    print!("拼接 play_id");
 
     if payload.duration_secs.is_some() && existing_data.duration_secs.is_none() {
         builder
@@ -147,7 +142,6 @@ pub async fn update_music_detail(
             .push_bind(payload.duration_secs);
         separator = ", ";
     }
-    print!("拼接 duration_secs");
     // --- 特殊处理 cover_url ---
     if let Some(new_cover_url) = &payload.cover_url {
         // 仅当数据库中没有 cover_url 或者cover_url以http开头(旧数据)时，才进行转换和更新
@@ -174,7 +168,6 @@ pub async fn update_music_detail(
             }
         }
     }
-    print!("拼接 cover_url");
 
     // --- 更新剩余的 download 字段 (如果需要，也可以添加按需更新逻辑) ---
     if payload.download_mp3.is_some() {
@@ -184,7 +177,6 @@ pub async fn update_music_detail(
             .push_bind(payload.download_mp3.as_ref());
         separator = ", ";
     }
-    print!("拼接 download_mp3");
 
     if payload.download_extra.is_some() {
         builder
@@ -193,29 +185,24 @@ pub async fn update_music_detail(
             .push_bind(payload.download_extra.as_ref());
         separator = ", ";
     }
-    print!("拼接 download_extra");
     if payload.download_mp3_id.is_some() {
         builder
             .push(separator)
             .push("download_mp3_id = ")
             .push_bind(payload.download_mp3_id.as_ref());
     }
-    print!("拼接 download_mp3_id");
 
     // 3. 如果没有任何字段需要更新，则直接返回
     if separator.is_empty() && payload.download_mp3_id.is_none() {
         return Ok(());
     }
-    print!("判断是否更新");
 
     // 4. 完成并执行 SQL 查询
     builder
         .push(" WHERE song_id = ")
         .push_bind(&payload.song_id);
     let query = builder.build();
-    print!("构建查询: {}", query.sql());
     query.execute(pool).await?;
-    print!("执行查询");
     Ok(())
 }
 
