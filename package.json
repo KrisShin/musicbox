@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "1.1.0",
-  "releaseNotes": "Release 20250819 \n1. 构建增加后台数据保存 \n2. 更换了更稳定的音乐源 \n3. 重构了前端UI布局 \n4. 重构了播放器页面 \n5. 增加了歌单功能 \n6. 新增了音乐播放模式 \n7. 增加了更新检查 \n8. 修复了部分已知bug",
+  "version": "1.1.3",
+  "releaseNotes": "Release 20250821 \n1. 修复了部分歌曲封面图加载失败 \n2. 优化了歌单页列表显示 \n3.新增歌单列表下载功能 \n4.支持了桌面端静默下载到下载文件夹 \n5. 修复了部分已知bug",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "@tauri-apps/plugin-dialog": "^2.3.2",
     "@tauri-apps/plugin-fs": "^2.4.1",
     "@tauri-apps/plugin-http": "^2.5.1",
+    "@tauri-apps/plugin-os": "~2",
     "@tauri-apps/plugin-shell": "^2.3.0",
     "antd": "^5.26.7",
     "react": "^18.3.1",

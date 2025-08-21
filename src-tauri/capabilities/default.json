@@ -7,6 +7,18 @@
   ],
   "permissions": [
     "core:default",
+    "core:path:default",
+    "clipboard-manager:allow-write-text",
+    "dialog:default",
+    "fs:allow-write-file",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
     {
       "identifier": "http:default",
       "allow": [
@@ -16,16 +28,8 @@
         "https://*.gitee.com/KrisShin/musicbox**"
       ]
     },
-    "dialog:default",
-    "fs:allow-write-file",
-    "clipboard-manager:allow-write-text",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "$DOWNLOAD/**"
-        }
-      ]
-    }
+    "shell:default",
+    "shell:allow-open",
+    "os:default"
   ]
 }

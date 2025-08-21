@@ -1,9 +1,10 @@
 // src-tauri/src/commands.rs
 
+use super::my_util;
 use crate::{
-    db::{
-        self, DbPool, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
-    },
+    db::{self},
+    model::{Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload},
+    my_util::DbPool,
     updater,
 };
 
@@ -88,7 +89,7 @@ async fn save_app_setting(
     value: String,
     state: tauri::State<'_, DbPool>,
 ) -> Result<(), String> {
-    db::save_app_setting(state.inner(), key, value)
+    my_util::save_app_setting(state.inner(), key, value)
         .await
         .map_err(|e| e.to_string())
 }
@@ -98,7 +99,7 @@ async fn get_app_setting(
     key: String,
     state: tauri::State<'_, DbPool>,
 ) -> Result<Option<String>, String> {
-    db::get_app_setting(state.inner(), key)
+    my_util::get_app_setting(state.inner(), key)
         .await
         .map_err(|e| e.to_string())
 }
@@ -110,8 +111,18 @@ async fn check_for_updates(app_handle: AppHandle) -> Result<updater::UpdateInfo,
 
 // 4. [新增] 忽略指定版本的 command
 #[tauri::command]
-async fn ignore_update(version: String, state: tauri::State<'_, db::DbPool>) -> Result<(), String> {
-    db::save_app_setting(state.inner(), "ignore_version".to_string(), version)
+async fn ignore_update(version: String, state: tauri::State<'_, DbPool>) -> Result<(), String> {
+    my_util::save_app_setting(state.inner(), "ignore_version".to_string(), version)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_music_detail_by_id(
+    song_id: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<Option<Music>, String> {
+    db::get_music_detail_by_id(state.inner(), song_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -130,5 +141,7 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         get_app_setting,
         check_for_updates,
         ignore_update,
+        get_music_detail_by_id,
+        my_util::download_music_desktop,
     ]
 }
