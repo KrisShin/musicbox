@@ -4,7 +4,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { Music } from "../types";
 import { musicDetail, searchMusic } from "../util/crawler";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { dirname, join } from "@tauri-apps/api/path";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { save } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
