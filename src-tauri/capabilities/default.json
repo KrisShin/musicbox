@@ -15,7 +15,7 @@
       "identifier": "fs:scope",
       "allow": [
         {
-          "path": "$DOWNLOAD/**"
+          "path": "**"
         }
       ]
     },
@@ -30,6 +30,6 @@
     },
     "shell:default",
     "shell:allow-open",
-    "share:default"
+    "os:default"
   ]
 }

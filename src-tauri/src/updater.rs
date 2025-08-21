@@ -1,6 +1,6 @@
 // src-tauri/src/updater.rs
 
-use crate::db;
+use crate::my_util;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -66,11 +66,12 @@ pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
     // 3. [核心逻辑] 版本比较
     if latest_version > current_version {
         // 发现新版本，查询是否被忽略
-        let pool = app.state::<db::DbPool>();
-        let ignored_version_str = db::get_app_setting(pool.inner(), "ignore_version".to_string())
-            .await
-            .map_err(|e| e.to_string())?
-            .unwrap_or_default(); // 如果不存在，默认为空字符串
+        let pool = app.state::<my_util::DbPool>();
+        let ignored_version_str =
+            my_util::get_app_setting(pool.inner(), "ignore_version".to_string())
+                .await
+                .map_err(|e| e.to_string())?
+                .unwrap_or_default(); // 如果不存在，默认为空字符串
 
         if latest_version_str == ignored_version_str {
             // 版本已被忽略

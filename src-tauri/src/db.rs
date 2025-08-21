@@ -1,51 +1,14 @@
-use sqlx::{QueryBuilder, SqlitePool, migrate::Migrator};
-use std::{fs::OpenOptions, path::PathBuf};
-use tauri::{AppHandle, Manager};
+use sqlx::QueryBuilder;
 
-use crate::model::{
-    ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
-    UpdateDetailPayload,
+use crate::{
+    model::{
+        ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
+        UpdateDetailPayload,
+    },
+    my_util::DbPool,
 };
 
 use super::my_util::img_url_to_b64;
-
-pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
-
-pub type DbPool = SqlitePool;
-
-pub async fn init_db_pool(app_handle: &AppHandle) -> Result<DbPool, Box<dyn std::error::Error>> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .expect("未能找到应用数据目录");
-
-    std::fs::create_dir_all(&app_data_dir)?;
-
-    let db_path: PathBuf = app_data_dir.join("musicbox.db");
-
-    if !db_path.exists() {
-        OpenOptions::new().write(true).create(true).open(&db_path)?;
-    }
-
-    let connection_string = format!("sqlite:{}", db_path.to_str().expect("数据库路径无效"));
-
-    let pool = SqlitePool::connect(&connection_string).await?;
-
-    MIGRATOR.run(&pool).await?;
-
-    let playlist_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM playlist")
-        .fetch_one(&pool)
-        .await?;
-
-    // 如果没有任何歌单，就创建一个默认的
-    if playlist_count.0 == 0 {
-        sqlx::query("INSERT INTO playlist (name) VALUES ('我的歌单')")
-            .execute(&pool)
-            .await?;
-    }
-
-    Ok(pool)
-}
 
 pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
@@ -372,37 +335,6 @@ pub async fn get_music_by_playlist_id(
     .await?;
 
     Ok(music_list)
-}
-
-pub async fn save_app_setting(
-    pool: &DbPool,
-    key: String,
-    value: String,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-            INSERT INTO app_setting (key, value)
-            VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET
-                value = excluded.value
-        "#,
-    )
-    .bind(key)
-    .bind(value)
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
-/// 通用函数：根据 key 获取一个设置项的值
-pub async fn get_app_setting(pool: &DbPool, key: String) -> Result<Option<String>, sqlx::Error> {
-    let result = sqlx::query_as::<_, (String,)>("SELECT value FROM app_setting WHERE key = ?")
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
-
-    // .map 将 Option<(String,)> 转换为 Option<String>
-    Ok(result.map(|(value,)| value))
 }
 
 pub async fn get_music_detail_by_id(

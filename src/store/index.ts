@@ -1,26 +1,30 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { invoke } from '@tauri-apps/api/core';
-import { Music } from '../types';
-import { musicDetail, searchMusic } from '../util/crawler';
-
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { invoke } from "@tauri-apps/api/core";
+import { Music } from "../types";
+import { musicDetail, searchMusic } from "../util/crawler";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { dirname, join } from "@tauri-apps/api/path";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { save } from "@tauri-apps/plugin-dialog";
+import { platform } from "@tauri-apps/plugin-os";
 
 // 1. 定义与后端交互的自定义存储引擎
 const tauriStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
     // `name` 就是我们 persist 中定义的名字 'frontend-cache'
-    await invoke('save_app_setting', { key: name, value });
+    await invoke("save_app_setting", { key: name, value });
   },
   getItem: async (name: string): Promise<string | null> => {
-    return await invoke('get_app_setting', { key: name });
+    return await invoke("get_app_setting", { key: name });
   },
   removeItem: async (name: string): Promise<void> => {
     // 也可以实现一个删除的 command，这里我们先用保存空字符串代替
-    await invoke('save_app_setting', { key: name, value: '' });
+    await invoke("save_app_setting", { key: name, value: "" });
   },
 };
 
-export type PlayMode = 'sequence' | 'single' | 'shuffle';
+export type PlayMode = "sequence" | "single" | "shuffle";
 
 // 2. 定义 store 的 state 和 actions 的类型
 interface AppState {
@@ -40,7 +44,6 @@ interface AppState {
   playMode: PlayMode; // [新增] 播放模式
   currentTime: number;
   duration: number;
-
 
   // Actions
   handleSearch: (value: string) => Promise<void>;
@@ -65,13 +68,13 @@ export const useAppStore = create<AppState>()(
       loading: false,
       searched: false,
       musicList: [],
-      currentKeyword: '热门',
+      currentKeyword: "热门",
       page: 1,
       hasMore: false,
 
       playQueue: [],
       currentMusic: null,
-      playMode: 'sequence', // 默认播放模式为顺序播放
+      playMode: "sequence", // 默认播放模式为顺序播放
       playingMusicIndex: -1,
       isPlaying: false,
       currentTime: 0,
@@ -82,12 +85,12 @@ export const useAppStore = create<AppState>()(
         const keyword = value.trim();
         if (!keyword) return;
 
-        const { page, currentKeyword, musicList } = get()
+        const { page, currentKeyword, musicList } = get();
 
-        set({ loading: true, searched: true })
+        set({ loading: true, searched: true });
         let currentPage = 1;
         if (keyword != currentKeyword) {
-          set({ currentKeyword: keyword })
+          set({ currentKeyword: keyword });
         } else {
           currentPage = page + 1;
         }
@@ -129,11 +132,13 @@ export const useAppStore = create<AppState>()(
         // 2. 获取歌曲详情并开始播放
         const musicToPlay = musicList[startIndex];
         try {
-          await get().handleDetail(musicToPlay).then(() => {
-            set({ isPlaying: true });
-          });
+          await get()
+            .handleDetail(musicToPlay)
+            .then(() => {
+              set({ isPlaying: true });
+            });
         } catch (error) {
-          throw new Error('获取歌曲详情失败');
+          throw new Error("获取歌曲详情失败");
         }
       },
 
@@ -143,37 +148,86 @@ export const useAppStore = create<AppState>()(
           handleClose();
           return;
         }
-        handleDetail(playQueue[index])
+        handleDetail(playQueue[index]);
         startPlayback(playQueue, index);
       },
       handleSave: async (music: Music) => {
         try {
-          const download_music = await musicDetail(music)
+          // 首先，确保我们有最新的、包含 play_url 的音乐详情
+          const musicWithDetail = await musicDetail(music);
+          if (!musicWithDetail.play_url) {
+            throw new Error("未能获取有效的播放链接");
+          }
 
-          const save_path = await invoke<string>('download_music', {
-            url: download_music.play_url,
-            title: download_music.title,
-            artist: download_music.artist,
-          });
-          // download_music.play_url && await open(download_music.play_url);
-          return save_path;
+          const currentPlatform = platform();
+          const isMobile =
+            currentPlatform === "android" || currentPlatform === "ios";
+
+          // --- 桌面端逻辑 ---
+          if (!isMobile) {
+            console.log("(下载) 桌面端平台，调用后台静默下载...");
+            const savePath = await invoke<string>("download_music_desktop", {
+              url: musicWithDetail.play_url,
+              title: musicWithDetail.title,
+              artist: musicWithDetail.artist,
+            });
+            console.log(`(下载) 桌面端下载成功，路径: ${savePath}`);
+            return savePath; // 返回保存路径
+          }
+
+          // --- 移动端逻辑 ---
+          else {
+            console.log("(下载) 移动端平台，弹出保存对话框...");
+            const suggestedFilename = `${musicWithDetail.title} - ${musicWithDetail.artist}.mp3`;
+
+            // 弹出保存对话框，让用户选择位置
+            // filePath 是一个带授权的 content:// URI
+            const filePath = await save({
+              title: "保存到...",
+              defaultPath: `Download/${suggestedFilename}`, // 为用户提供一个友好的默认文件名
+            });
+
+            // 如果用户取消了选择，filePath 会是 null
+            if (!filePath) {
+              console.log("(下载) 用户取消保存。");
+              throw new Error(`取消下载`);
+            }
+
+            console.log(`(下载) 用户选择了路径，开始下载: ${filePath}`);
+
+            // 使用 tauriFetch 下载文件内容
+            const response = await tauriFetch(musicWithDetail.play_url, {
+              method: "GET",
+            });
+            if (!response.ok)
+              throw new Error(`HTTP 请求失败: ${response.status}`);
+
+            const arrayBuffer = await response.arrayBuffer();
+
+            // 使用 writeFile 写入到用户刚刚授权的 content:// URI
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+
+            console.log("(下载) 移动端下载成功！");
+            return filePath;
+          }
         } catch (error: any) {
-          console.error("调用下载命令失败:", error);
+          console.error("下载失败:", error);
           throw new Error(`${error}`);
         }
       },
 
       handleNext: () => {
-        const { playMode, playingMusicIndex, playQueue, _playIndexMusic } = get();
+        const { playMode, playingMusicIndex, playQueue, _playIndexMusic } =
+          get();
         if (playQueue.length === 0) return;
 
         let nextIndex = playingMusicIndex;
         switch (playMode) {
-          case 'single':
+          case "single":
             // 单曲循环：重新播放当前歌曲
             _playIndexMusic(playingMusicIndex);
             return;
-          case 'shuffle':
+          case "shuffle":
             // 随机播放：获取一个随机索引
             if (playQueue.length <= 1) break; // 如果只有一首歌，直接返回
             let newIndex = Math.floor(Math.random() * playQueue.length);
@@ -182,7 +236,7 @@ export const useAppStore = create<AppState>()(
             }
             nextIndex = newIndex;
             break;
-          case 'sequence':
+          case "sequence":
           default:
             // 顺序播放
             nextIndex = playingMusicIndex + 1;
@@ -192,7 +246,14 @@ export const useAppStore = create<AppState>()(
             }
             break;
         }
-        console.log("当前音乐", playQueue[playingMusicIndex].title, "下一首音乐", playQueue[nextIndex].title, "播放模式", playMode);
+        console.log(
+          "当前音乐",
+          playQueue[playingMusicIndex].title,
+          "下一首音乐",
+          playQueue[nextIndex].title,
+          "播放模式",
+          playMode
+        );
         _playIndexMusic(nextIndex);
       },
       handlePrev: () => {
@@ -206,14 +267,22 @@ export const useAppStore = create<AppState>()(
       },
 
       handleClose: () => {
-        set({ currentMusic: null, isPlaying: false, playingMusicIndex: -1, playQueue: [] });
+        set({
+          currentMusic: null,
+          isPlaying: false,
+          playingMusicIndex: -1,
+          playQueue: [],
+        });
       },
       setCurrentTime: (time) => set({ currentTime: time }),
       setDuration: (duration) => set({ duration: duration }),
       cyclePlayMode: async (mode?: PlayMode) => {
         const { playMode } = get();
-        if (mode && playMode.includes(mode)) { set({ playMode: mode }); return mode; };
-        const modes: PlayMode[] = ['sequence', 'single', 'shuffle'];
+        if (mode && playMode.includes(mode)) {
+          set({ playMode: mode });
+          return mode;
+        }
+        const modes: PlayMode[] = ["sequence", "single", "shuffle"];
         const currentIndex = modes.indexOf(playMode);
         const nextIndex = (currentIndex + 1) % modes.length;
         set({ playMode: modes[nextIndex] });
@@ -222,7 +291,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       // 4. 配置 persist 中间件
-      name: 'frontend-cache', // 这将是我们在数据库中存储的 key
+      name: "frontend-cache", // 这将是我们在数据库中存储的 key
       storage: createJSONStorage(() => tauriStorage), // 使用我们自定义的 Tauri 存储引擎
 
       // 5. [关键] 选择性持久化：只保存我们需要的状态
