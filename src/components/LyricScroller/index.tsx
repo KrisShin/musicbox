@@ -95,8 +95,8 @@ const LyricScroller: React.FC<LyricScrollerProps> = ({
             transition: "color 0.3s, font-size 0.3s",
             // 高亮当前行
             color: index === currentLineIndex ? primaryThemeColor : "#5a5a5aff",
-            textShadow: index === currentLineIndex ? "0 0 10px #050035ff, 0 0 12px #a30000ff" : undefined,
-            fontSize: index === currentLineIndex ? "17px" : "14px",
+            textShadow: index === currentLineIndex ? "0 0 5px #0a0633ff, 0 0 7px #a30000ff" : undefined,
+            fontSize: index === currentLineIndex ? "18px" : "14px",
             fontWeight: index === currentLineIndex ? "bold" : "normal",
           }}
         >

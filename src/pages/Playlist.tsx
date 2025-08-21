@@ -1,41 +1,59 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Flex, Image, Typography, Button, List, Spin, Avatar, Modal } from 'antd';
-import { DownloadOutlined, RetweetOutlined, PlaySquareOutlined, DeleteOutlined, CaretDownOutlined } from '@ant-design/icons';
-import { invoke } from '@tauri-apps/api/core';
-import { useAppStore } from '../store';
-import type { PlaylistInfo, Music, PlaylistMusic } from '../types';
-import './Playlist.css'; // 我们将为它创建专属的 CSS
-import { useGlobalMessage } from '../components/MessageHook';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Flex,
+  Image,
+  Typography,
+  Button,
+  List,
+  Spin,
+  Avatar,
+  Modal,
+} from "antd";
+import {
+  DownloadOutlined,
+  RetweetOutlined,
+  PlaySquareOutlined,
+  DeleteOutlined,
+  CaretDownOutlined,
+} from "@ant-design/icons";
+import { invoke } from "@tauri-apps/api/core";
+import { useAppStore } from "../store";
+import type { PlaylistInfo, Music, PlaylistMusic } from "../types";
+import "./Playlist.css"; // 我们将为它创建专属的 CSS
+import { useGlobalMessage } from "../components/MessageHook";
 
 const { Title, Text } = Typography;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode } = useAppStore();
+  const { startPlayback, cyclePlayMode, handleSave } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
-  const [selectedPlaylistMusic, setSelectedPlaylistMusic] = useState<PlaylistMusic[]>([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(
+    null
+  );
+  const [selectedPlaylistMusic, setSelectedPlaylistMusic] = useState<
+    PlaylistMusic[]
+  >([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
   const [loadingMusic, setLoadingMusic] = useState(false);
   const [isSelectorVisible, setIsSelectorVisible] = useState(false);
 
   const messageApi = useGlobalMessage();
 
-
   // --- 数据获取 ---
 
   const fetchPlaylists = async () => {
     try {
-      const result: PlaylistInfo[] = await invoke('get_all_playlists');
+      const result: PlaylistInfo[] = await invoke("get_all_playlists");
       setPlaylists(result);
       // 如果有歌单，默认选中第一个
       if (result.length > 0) {
         setSelectedPlaylistId(result[0].id);
       }
     } catch (error) {
-      messageApi.error('加载歌单列表失败');
+      messageApi.error("加载歌单列表失败");
       console.error(error);
     } finally {
       setLoadingPlaylists(false);
@@ -49,10 +67,12 @@ const PlaylistPage: React.FC = () => {
   const fetchPlaylistMusic = async () => {
     setLoadingMusic(true);
     try {
-      const result: PlaylistMusic[] = await invoke('get_music_by_playlist_id', { playlistId: selectedPlaylistId });
+      const result: PlaylistMusic[] = await invoke("get_music_by_playlist_id", {
+        playlistId: selectedPlaylistId,
+      });
       setSelectedPlaylistMusic(result);
     } catch (error) {
-      messageApi.error('加载歌曲列表失败');
+      messageApi.error("加载歌曲列表失败");
       console.error(error);
     } finally {
       setLoadingMusic(false);
@@ -69,65 +89,101 @@ const PlaylistPage: React.FC = () => {
 
   // 3. 使用 useMemo 提高性能，避免每次渲染都重新查找
   const selectedPlaylist = useMemo(() => {
-    return playlists.find(p => p.id === selectedPlaylistId);
+    return playlists.find((p) => p.id === selectedPlaylistId);
   }, [playlists, selectedPlaylistId]);
 
   // --- 事件处理 ---
 
   // 4. 处理歌单重命名
   const handleRenamePlaylist = async (newName: string) => {
-    if (!selectedPlaylist || newName.trim() === '' || newName === selectedPlaylist.name) {
+    if (
+      !selectedPlaylist ||
+      newName.trim() === "" ||
+      newName === selectedPlaylist.name
+    ) {
       return;
     }
     try {
-      await invoke('rename_playlist', { playlistId: selectedPlaylist.id, newName });
+      await invoke("rename_playlist", {
+        playlistId: selectedPlaylist.id,
+        newName,
+      });
       // 重新加载歌单列表以更新UI
-      const updatedPlaylists: PlaylistInfo[] = await invoke('get_all_playlists');
+      const updatedPlaylists: PlaylistInfo[] = await invoke(
+        "get_all_playlists"
+      );
       setPlaylists(updatedPlaylists);
-      messageApi.success('歌单已重命名');
+      messageApi.success("歌单已重命名");
     } catch (error) {
-      messageApi.error('重命名失败');
+      messageApi.error("重命名失败");
       console.error(error);
     }
   };
 
   const handlePlaySong = (index: number) => {
     // 将 PlaylistMusic[] 转换为 Music[]
-    const musicQueue = selectedPlaylistMusic.map(s => s.music);
-    startPlayback(musicQueue, index).catch(error => console.error(error));
+    const musicQueue = selectedPlaylistMusic.map((s) => s.music);
+    startPlayback(musicQueue, index).catch((error) => console.error(error));
   };
 
   const handleRemoveFromPlaylist = async (music: Music) => {
     if (!selectedPlaylist) return;
     try {
-      await invoke('toggle_music_in_playlist', {
+      await invoke("toggle_music_in_playlist", {
         payload: {
           playlistId: selectedPlaylist.id,
           song_ids: [music.song_id],
         },
       });
 
-      fetchPlaylistMusic()
+      fetchPlaylistMusic();
       messageApi.success(`已从“${selectedPlaylist.name}”中移除`);
     } catch (error) {
-      messageApi.error('操作失败');
+      messageApi.error("操作失败");
       console.error(error);
     }
   };
 
   // [新增] 播放整个歌单的函数
-  const handlePlayAll = (mode: 'sequence' | 'shuffle') => {
+  const handlePlayAll = (mode: "sequence" | "shuffle") => {
     if (selectedPlaylistMusic.length === 0) return;
 
     // 1. 设置播放模式
     cyclePlayMode(mode); // 假设你在 store 中也添加了 setPlayMode
 
     // 2. 播放第一首歌
-    const musicQueue = selectedPlaylistMusic.map(s => s.music);
-    const startIndex = mode === 'shuffle' ? Math.floor(Math.random() * musicQueue.length) : 0;
-    messageApi.success(`${mode === 'sequence' ? '顺序' : '随机'} 播放 ${selectedPlaylist?.name || '歌单'}, 即将播放 ${musicQueue[startIndex].title}`);
-    startPlayback(musicQueue, startIndex).catch(error => console.error(error));
-  }
+    const musicQueue = selectedPlaylistMusic.map((s) => s.music);
+    const startIndex =
+      mode === "shuffle" ? Math.floor(Math.random() * musicQueue.length) : 0;
+    messageApi.success(
+      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${
+        selectedPlaylist?.name || "歌单"
+      }, 即将播放 ${musicQueue[startIndex].title}`
+    );
+    startPlayback(musicQueue, startIndex).catch((error) =>
+      console.error(error)
+    );
+  };
+
+  const handleDownload = async (music: Music) => {
+    try {
+      messageApi.success(`开始下载 ${music.title}...`);
+      handleSave(music)
+        .then(async (_: string) => {
+          messageApi.destroy();
+          messageApi.success(`${music.title}下载完成`);
+        })
+        .catch((error) => {
+          messageApi.destroy();
+          messageApi.error(`下载失败: ${error.message || "未知错误"}`);
+          return;
+        });
+    } catch (error) {
+      messageApi.destroy();
+      messageApi.error(`下载失败: ${error || "未知错误"}`);
+      return;
+    }
+  };
 
   // --- 渲染 ---
 
@@ -137,61 +193,114 @@ const PlaylistPage: React.FC = () => {
       {selectedPlaylist ? (
         <Flex vertical gap="middle" className="playlist-header">
           {/* 封面和信息 */}
-          <Flex gap="large" className="header-info-section" >
+          <Flex gap="large" className="header-info-section">
             <Image
-              src={selectedPlaylist?.cover_path || '/default_cover.png'}
-              width={120} height={120}
+              src={selectedPlaylist?.cover_path || "/default_cover.png"}
+              width={120}
+              height={120}
               className="header-cover-img"
             />
             <Flex vertical justify="space-between" style={{ flex: 1 }}>
               <div>
-                <Title level={3} editable={{ onChange: handleRenamePlaylist }} style={{ margin: 0 }}>
+                <Title
+                  level={3}
+                  editable={{ onChange: handleRenamePlaylist }}
+                  style={{ margin: 0 }}
+                >
                   {selectedPlaylist.name}
                 </Title>
                 {/* [新增] 切换歌单的按钮 */}
-                <Button type="text" size="small" onClick={() => setIsSelectorVisible(true)} style={{ padding: '0', height: 'auto' }}>
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => setIsSelectorVisible(true)}
+                  style={{ padding: "0", height: "auto" }}
+                >
                   切换歌单 <CaretDownOutlined />
                 </Button>
               </div>
               <Text type="secondary">
-                共 {selectedPlaylist.song_count} 首 · 更新于 {new Date(selectedPlaylist.updated_at).toLocaleDateString()}
+                共 {selectedPlaylist.song_count} 首 · 更新于{" "}
+                {new Date(selectedPlaylist.updated_at).toLocaleDateString()}
               </Text>
             </Flex>
           </Flex>
           {/* 操作按钮 */}
           <Flex gap="middle" className="header-actions">
-            <Button type="primary" icon={<PlaySquareOutlined />} onClick={() => handlePlayAll('sequence')}>顺序播放</Button>
-            <Button type="primary" icon={<RetweetOutlined />} onClick={() => handlePlayAll('shuffle')}>随机播放</Button>
-            <Button type="primary" icon={<DownloadOutlined />} disabled>下载全部</Button>
+            <Button
+              type="primary"
+              icon={<PlaySquareOutlined />}
+              onClick={() => handlePlayAll("sequence")}
+            >
+              顺序播放
+            </Button>
+            <Button
+              type="primary"
+              icon={<RetweetOutlined />}
+              onClick={() => handlePlayAll("shuffle")}
+            >
+              随机播放
+            </Button>
+            <Button type="primary" icon={<DownloadOutlined />} disabled>
+              下载全部
+            </Button>
           </Flex>
         </Flex>
       ) : (
-        !loadingPlaylists && <Flex justify="center" align="center" style={{ height: '100%' }}><Text>请选择或创建一个歌单</Text></Flex>
+        !loadingPlaylists && (
+          <Flex justify="center" align="center" style={{ height: "100%" }}>
+            <Text>请选择或创建一个歌单</Text>
+          </Flex>
+        )
       )}
 
       {/* 5. [重构] 歌曲列表 */}
       <Spin spinning={loadingMusic}>
         <div className="song-list-container">
           <List
-            size='small'
+            size="small"
             dataSource={selectedPlaylistMusic}
             renderItem={(playlistSong, index) => (
               <List.Item
                 className="song-list-item"
                 onClick={() => handlePlaySong(index)}
                 actions={[
-                  <Button type="text" shape="circle" icon={<DownloadOutlined />} onClick={(e) => { e.stopPropagation(); /* ... */ }} />,
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<DownloadOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(playlistSong.music);
+                    }}
+                  />,
                   // [新增] 移除按钮
-                  <Button type="text" danger shape="circle" icon={<DeleteOutlined />} onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFromPlaylist(playlistSong.music);
-                  }} />
+                  <Button
+                    type="text"
+                    danger
+                    shape="circle"
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFromPlaylist(playlistSong.music);
+                    }}
+                  />,
                 ]}
               >
                 <List.Item.Meta
-                  avatar={<Text style={{ width: '20px', textAlign: 'center' }}>{index + 1}</Text>}
-                  title={<Text ellipsis>{playlistSong.music.title}</Text>}
-                  description={<Text ellipsis type="secondary">{playlistSong.music.artist}</Text>}
+                  avatar={
+                    <Avatar size={40} src={playlistSong.music.cover_url} />
+                  }
+                  title={
+                    <Text ellipsis>
+                      {index + 1}. {playlistSong.music.title}
+                    </Text>
+                  }
+                  description={
+                    <Text ellipsis type="secondary">
+                      {playlistSong.music.artist}
+                    </Text>
+                  }
                 />
               </List.Item>
             )}
@@ -209,7 +318,7 @@ const PlaylistPage: React.FC = () => {
       >
         <List
           dataSource={playlists}
-          renderItem={p => (
+          renderItem={(p) => (
             <List.Item
               className="playlist-selector-item"
               onClick={() => {
@@ -218,7 +327,12 @@ const PlaylistPage: React.FC = () => {
               }}
             >
               <List.Item.Meta
-                avatar={<Avatar shape="square" src={p?.cover_path || '/default_cover.png'} />}
+                avatar={
+                  <Avatar
+                    shape="square"
+                    src={p?.cover_path || "/default_cover.png"}
+                  />
+                }
                 title={p.name}
                 description={`${p.song_count} 首歌曲`}
               />
@@ -227,7 +341,6 @@ const PlaylistPage: React.FC = () => {
         />
       </Modal>
     </div>
-
   );
 };
 
