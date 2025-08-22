@@ -12,6 +12,7 @@ import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { UpdateInfo } from './types';
 import { invoke } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { cacheSongWithNotifications } from './util/cache';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -113,6 +114,7 @@ const App = () => {
     }
   };
 
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentMusic?.play_url) {
@@ -126,6 +128,7 @@ const App = () => {
         audio.play().catch(e => console.error("自动播放失败:", e));
       }
     }
+    cacheSongWithNotifications(currentMusic)
 
   }, [currentMusic, handleNext]);
 
