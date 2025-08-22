@@ -5,13 +5,10 @@ tech stack: Tauri V2 + React + Typescript
 This is a music downloader client for learning Tauri V2, And you can search/download music by this client.
 We will support multi-platform, welcome try in [Release](https://github.com/KrisShin/musicbox/releases)
 
-### Release 20250821 
+### Release 20250822 
 
-- 1. fixed the failure of loading some song cover art 
-- 2. optimized the list display of song list page 
-- 3. added the download function of song list list 
-- 4. supported the desktop silent download to the download folder 
-- 5. fixed some known bugs
+- 1. Add System tray on desktop client.
+- 2. fixed some known bugs
 
 ## Client(Android)
 
