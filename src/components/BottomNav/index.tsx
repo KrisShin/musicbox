@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Flex, Button } from 'antd';
-import { SearchOutlined, UnorderedListOutlined, PlaySquareOutlined } from '@ant-design/icons';
+import { SearchOutlined, UnorderedListOutlined, PlaySquareOutlined, SettingOutlined } from '@ant-design/icons';
 
 const { Footer } = Layout;
 
@@ -14,6 +14,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
         { key: 'search', icon: <SearchOutlined />, label: '搜索' },
         { key: 'playlist', icon: <UnorderedListOutlined />, label: '歌单' },
         { key: 'player', icon: <PlaySquareOutlined />, label: '播放' },
+        { key: 'setting', icon: <SettingOutlined />, label: '设置' },
     ];
 
     return (

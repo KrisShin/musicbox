@@ -3,6 +3,7 @@ import { Layout, Typography, Image, Flex, Button } from 'antd';
 import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
+import SettingPage from './pages/Setting';
 import BottomNav from './components/BottomNav';
 import './App.css';
 import { useAppStore } from './store';
@@ -12,7 +13,6 @@ import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { UpdateInfo } from './types';
 import { invoke } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { cacheSongWithNotifications } from './util/cache';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -109,6 +109,8 @@ const App = () => {
         return <PlaylistPage />;
       case 'player':
         return <PlayerPage audioRef={audioRef} />;
+      case 'setting':
+        return <SettingPage />;
       default:
         return <SearchPage />;
     }
@@ -128,8 +130,6 @@ const App = () => {
         audio.play().catch(e => console.error("自动播放失败:", e));
       }
     }
-    cacheSongWithNotifications(currentMusic)
-
   }, [currentMusic, handleNext]);
 
   useEffect(() => {

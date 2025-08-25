@@ -7,6 +7,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { save } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 // 1. 定义与后端交互的自定义存储引擎
 const tauriStorage = {
@@ -57,6 +58,7 @@ interface AppState {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   cyclePlayMode: (mode?: PlayMode) => Promise<string>; // [新增] 切换播放模式
+  cacheSongWithNotifications: (music: Music) => Promise<string>; // 下载时发送通知
 }
 
 // 3. 创建 Zustand store
@@ -132,7 +134,7 @@ export const useAppStore = create<AppState>()(
         const musicToPlay = musicList[startIndex];
         try {
           await get()
-            .handleDetail(musicToPlay)
+            .cacheSongWithNotifications(musicToPlay)
             .then(() => {
               set({ isPlaying: true });
             });
@@ -287,6 +289,55 @@ export const useAppStore = create<AppState>()(
         set({ playMode: modes[nextIndex] });
         return modes[nextIndex]; // 返回新的播放模式
       },
+      cacheSongWithNotifications: async (music?: Music) => {
+        const { handleSave, currentMusic } = get();
+        if (!music) {
+          if (!currentMusic) throw new Error("未选中歌曲, 无法下载");
+          music = currentMusic;
+        };
+        try {
+          // 1. 检查并请求权限 (一次授权，终身使用)
+          let hasPermission = await isPermissionGranted();
+          if (!hasPermission) {
+            const permissionResult = await requestPermission();
+            hasPermission = permissionResult === 'granted';
+          }
+
+          // 2. 如果有权限，发送“开始缓存”通知
+          if (hasPermission) {
+            sendNotification({
+              title: '开始缓存',
+              body: `正在将《${music.title}》保存到本地...`,
+              // 你还可以添加一个图标
+              // icon: 'path/to/icon.png'
+            });
+          }
+
+          // 3. 执行核心的缓存操作
+          const file_path = await handleSave(music);
+
+          // 4. 缓存成功后，发送“完成”通知
+          if (hasPermission) {
+            sendNotification({
+              title: '缓存完成 🎉',
+              body: `歌曲《${music.title}》已成功保存到本地！`,
+            });
+          }
+          return file_path;
+        } catch (error) {
+          console.error(`缓存歌曲《${music.title}》时出错:`, error);
+
+          // 5. (可选) 如果失败，也可以发送一个失败通知
+          const hasPermission = await isPermissionGranted();
+          if (hasPermission) {
+            sendNotification({
+              title: '缓存失败 😥',
+              body: `无法缓存歌曲《${music.title}》，请检查网络或稍后重试。`,
+            });
+          }
+          throw new Error(`${error}`);
+        }
+      }
     }),
     {
       // 4. 配置 persist 中间件
