@@ -9,6 +9,8 @@ pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub type DbPool = SqlitePool;
 
+pub const MEDIA_ADDR: &str = "127.0.0.1:38915";
+
 // 这是一个内部辅助函数，不再暴露给前端
 pub async fn img_url_to_b64(url: &str) -> Result<String, String> {
     let client = reqwest::Client::builder()
@@ -39,44 +41,28 @@ pub async fn img_url_to_b64(url: &str) -> Result<String, String> {
     Ok(data_url)
 }
 
-// #[tauri::command]
-// pub async fn download_music_desktop(
-//     app_handle: AppHandle,
-//     url: String,
-//     title: String,
-//     artist: String,
-// ) -> Result<String, String> {
-//     // 您的桌面端下载逻辑是完美的，我们直接使用它
-//     let download_path = app_handle
-//         .path()
-//         .download_dir()
-//         .or_else(|_| Err("无法获取下载目录".to_string()))?;
+pub fn parse_range(range_str: &str, total_size: u64) -> Option<(u64, u64)> {
+    if !range_str.starts_with("bytes=") {
+        return None;
+    }
+    let parts: Vec<&str> = range_str[6..].split('-').collect();
+    if parts.len() != 2 {
+        return None;
+    }
 
-//     let base_filename = format!("{} - {}.mp3", title, artist);
-//     let mut final_path = download_path.join(&base_filename);
-//     let mut counter = 1;
+    let start = parts[0].parse::<u64>().ok()?;
+    let end = if parts[1].is_empty() {
+        total_size - 1
+    } else {
+        parts[1].parse::<u64>().ok()?
+    };
 
-//     while final_path.exists() {
-//         let new_filename = format!("{} - {} ({}).mp3", title, artist, counter);
-//         final_path = download_path.join(new_filename);
-//         counter += 1;
-//     }
-
-//     let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
-//     if !response.status().is_success() {
-//         return Err(format!("网络请求失败: {}", response.status()));
-//     }
-//     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-//     tokio::fs::write(&final_path, &bytes)
-//         .await
-//         .map_err(|e| e.to_string())?;
-
-//     println!("文件成功下载至: {:?}", final_path);
-//     Ok(final_path
-//         .to_str()
-//         .ok_or("无法转换路径为字符串".to_string())?
-//         .to_string())
-// }
+    if start > end || end >= total_size {
+        None
+    } else {
+        Some((start, end))
+    }
+}
 
 pub async fn save_app_setting(
     pool: &DbPool,

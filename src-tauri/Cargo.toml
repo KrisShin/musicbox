@@ -32,3 +32,5 @@ semver = { version = "1.0.26", features = ["serde"] }
 tokio = { version = "1.47.1", features= ["full"] }
 tauri-plugin-os = "2"
 tauri-plugin-notification = "2"
+tiny_http = "0.12.0"
+urlencoding = "2.1.3"

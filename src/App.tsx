@@ -13,7 +13,6 @@ import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { UpdateInfo } from './types';
 import { invoke } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { convertFileSrc } from '@tauri-apps/api/core';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -59,7 +58,7 @@ const App = () => {
     // --- 同步歌曲源 ---
     if (currentMusic && currentMusic.file_path) {
       if (audio.src !== currentMusic.file_path) {
-        audio.src = convertFileSrc(currentMusic.file_path);
+        audio.src = currentMusic.file_path;
       }
     } else {
       audio.src = "";
@@ -123,7 +122,7 @@ const App = () => {
     };
 
     if (audio.src !== currentMusic.file_path) {
-      audio.src = convertFileSrc(currentMusic.file_path);
+      audio.src = currentMusic.file_path;
       if (isPlaying && !audio.played) {
         audio.play().catch(e => console.error("自动播放失败:", e));
       }

@@ -9,7 +9,7 @@ use crate::{
         ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
         UpdateDetailPayload,
     },
-    my_util::DbPool,
+    my_util::{DbPool, MEDIA_ADDR},
 };
 
 use super::my_util::img_url_to_b64;
@@ -382,11 +382,27 @@ pub async fn cache_music_and_get_file_path(
     pool: &DbPool,
     music: Music,
 ) -> Result<String, String> {
+    // 4. 使用 play_id (如果存在) 或 song_id 作为唯一文件名，避免冲突
+    let sanitized_title = music
+        .title
+        .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+    let sanitized_artist = music
+        .artist
+        .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+    let file_name = format!(
+        "{}_{}-{}.mp3",
+        music.song_id, sanitized_title, sanitized_artist
+    );
+
     // 1. 优先检查从前端传来的 music 对象中是否已包含有效的缓存路径
     if let Some(path_str) = music.file_path.as_deref() {
         if !path_str.is_empty() && Path::new(path_str).exists() {
             println!("缓存命中 (来自前端对象): {}", path_str);
-            return Ok(path_str.to_string());
+            return Ok(format!(
+                "http://{}/{}",
+                MEDIA_ADDR,
+                urlencoding::encode(&file_name)
+            ));
         }
     }
 
@@ -405,10 +421,6 @@ pub async fn cache_music_and_get_file_path(
             .map_err(|e| format!("创建缓存目录失败: {}", e))?;
     }
 
-    // 4. 使用 play_id (如果存在) 或 song_id 作为唯一文件名，避免冲突
-    let file_name = format!("{}_{}-{}.mp3", music.song_id, music.title, music.artist)
-        .replace("/", "_") // 替换掉文件名中的斜杠，防止路径问题
-        .replace("\\", "_"); // 替换掉反斜杠
     let local_path = cache_dir.join(&file_name);
     let local_path_str = local_path.to_string_lossy().into_owned();
 
@@ -418,7 +430,11 @@ pub async fn cache_music_and_get_file_path(
         update_music_cache_path(&pool, &music.song_id, &local_path_str)
             .await
             .map_err(|e| format!("(同步)更新数据库失败: {}", e))?;
-        return Ok(local_path_str);
+        return Ok(format!(
+            "http://{}/{}",
+            MEDIA_ADDR,
+            urlencoding::encode(&file_name)
+        ));
     }
 
     // --- 文件不存在，开始下载 ---
@@ -453,5 +469,9 @@ pub async fn cache_music_and_get_file_path(
         .await
         .map_err(|e| format!("(下载后)更新数据库失败: {}", e))?;
 
-    Ok(local_path_str)
+    Ok(format!(
+        "http://{}/{}",
+        MEDIA_ADDR,
+        urlencoding::encode(&file_name)
+    ))
 }
