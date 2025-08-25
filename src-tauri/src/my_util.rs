@@ -39,44 +39,44 @@ pub async fn img_url_to_b64(url: &str) -> Result<String, String> {
     Ok(data_url)
 }
 
-#[tauri::command]
-pub async fn download_music_desktop(
-    app_handle: AppHandle,
-    url: String,
-    title: String,
-    artist: String,
-) -> Result<String, String> {
-    // 您的桌面端下载逻辑是完美的，我们直接使用它
-    let download_path = app_handle
-        .path()
-        .download_dir()
-        .or_else(|_| Err("无法获取下载目录".to_string()))?;
+// #[tauri::command]
+// pub async fn download_music_desktop(
+//     app_handle: AppHandle,
+//     url: String,
+//     title: String,
+//     artist: String,
+// ) -> Result<String, String> {
+//     // 您的桌面端下载逻辑是完美的，我们直接使用它
+//     let download_path = app_handle
+//         .path()
+//         .download_dir()
+//         .or_else(|_| Err("无法获取下载目录".to_string()))?;
 
-    let base_filename = format!("{} - {}.mp3", title, artist);
-    let mut final_path = download_path.join(&base_filename);
-    let mut counter = 1;
+//     let base_filename = format!("{} - {}.mp3", title, artist);
+//     let mut final_path = download_path.join(&base_filename);
+//     let mut counter = 1;
 
-    while final_path.exists() {
-        let new_filename = format!("{} - {} ({}).mp3", title, artist, counter);
-        final_path = download_path.join(new_filename);
-        counter += 1;
-    }
+//     while final_path.exists() {
+//         let new_filename = format!("{} - {} ({}).mp3", title, artist, counter);
+//         final_path = download_path.join(new_filename);
+//         counter += 1;
+//     }
 
-    let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
-    if !response.status().is_success() {
-        return Err(format!("网络请求失败: {}", response.status()));
-    }
-    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    tokio::fs::write(&final_path, &bytes)
-        .await
-        .map_err(|e| e.to_string())?;
+//     let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+//     if !response.status().is_success() {
+//         return Err(format!("网络请求失败: {}", response.status()));
+//     }
+//     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+//     tokio::fs::write(&final_path, &bytes)
+//         .await
+//         .map_err(|e| e.to_string())?;
 
-    println!("文件成功下载至: {:?}", final_path);
-    Ok(final_path
-        .to_str()
-        .ok_or("无法转换路径为字符串".to_string())?
-        .to_string())
-}
+//     println!("文件成功下载至: {:?}", final_path);
+//     Ok(final_path
+//         .to_str()
+//         .ok_or("无法转换路径为字符串".to_string())?
+//         .to_string())
+// }
 
 pub async fn save_app_setting(
     pool: &DbPool,

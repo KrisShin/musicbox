@@ -13,6 +13,7 @@ import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { UpdateInfo } from './types';
 import { invoke } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -56,31 +57,28 @@ const App = () => {
     if (!audio) return;
 
     // --- 同步歌曲源 ---
-    if (currentMusic && currentMusic.play_url) {
-      if (audio.src !== currentMusic.play_url) {
-        audio.src = currentMusic.play_url;
-        // 当源改变时，我们期望它能自动播放
-        if (isPlaying && !audio.played) {
-          audio.play().catch(e => console.error("自动播放失败:", e));
-        }
-      } ` `
+    if (currentMusic && currentMusic.file_path) {
+      if (audio.src !== currentMusic.file_path) {
+        audio.src = convertFileSrc(currentMusic.file_path);
+      }
     } else {
-      // 如果没有歌曲或播放链接，则清空
       audio.src = "";
     }
 
     // --- 同步播放/暂停状态 ---
-    if (isPlaying) {
-      // 检查是否已暂停，避免不必要的 play() 调用
-      if (audio.paused) {
-        audio.play().catch(e => console.error("播放失败:", e));
+    setTimeout(() => {
+      if (isPlaying) {
+        // 检查是否已暂停，避免不必要的 play() 调用
+        if (audio.paused) {
+          audio.play().catch(e => console.error("播放失败:", e));
+        }
+      } else {
+        // 检查是否正在播放，避免不必要的 pause() 调用
+        if (!audio.paused) {
+          audio.pause();
+        }
       }
-    } else {
-      // 检查是否正在播放，避免不必要的 pause() 调用
-      if (!audio.paused) {
-        audio.pause();
-      }
-    }
+    }, 90)
   }, [currentMusic, isPlaying]); // 同时监听歌曲和播放状态的变化
 
   useEffect(() => {
@@ -119,13 +117,13 @@ const App = () => {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentMusic?.play_url) {
+    if (!audio || !currentMusic?.file_path) {
       handleClose(); // 如果没有播放链接，就关闭播放器
       return;
     };
 
-    if (audio.src !== currentMusic.play_url) {
-      audio.src = currentMusic.play_url;
+    if (audio.src !== currentMusic.file_path) {
+      audio.src = convertFileSrc(currentMusic.file_path);
       if (isPlaying && !audio.played) {
         audio.play().catch(e => console.error("自动播放失败:", e));
       }

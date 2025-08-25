@@ -27,7 +27,7 @@ const SettingPage: React.FC = () => {
                 itemLayout="horizontal"
                 dataSource={settings}
                 size='small'
-                renderItem={(item, index) => (
+                renderItem={(item, _index) => (
                     <List.Item
                         onClick={() => {
                             console.log(item.title)

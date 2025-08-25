@@ -58,7 +58,7 @@ interface AppState {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   cyclePlayMode: (mode?: PlayMode) => Promise<string>; // [新增] 切换播放模式
-  cacheSongWithNotifications: (music: Music) => Promise<string>; // 下载时发送通知
+  saveSongWithNotifications: (music: Music) => Promise<string>; // 下载时发送通知
 }
 
 // 3. 创建 Zustand store
@@ -134,7 +134,7 @@ export const useAppStore = create<AppState>()(
         const musicToPlay = musicList[startIndex];
         try {
           await get()
-            .cacheSongWithNotifications(musicToPlay)
+            .handleDetail(musicToPlay)
             .then(() => {
               set({ isPlaying: true });
             });
@@ -154,7 +154,7 @@ export const useAppStore = create<AppState>()(
       },
       handleSave: async (music: Music) => {
         try {
-          // 首先，确保我们有最新的、包含 play_url 的音乐详情
+          // TODO: 修改下载为从缓存复制并保存文件到下载目录
           const musicWithDetail = await musicDetail(music);
           if (!musicWithDetail.play_url) {
             throw new Error("未能获取有效的播放链接");
@@ -289,7 +289,7 @@ export const useAppStore = create<AppState>()(
         set({ playMode: modes[nextIndex] });
         return modes[nextIndex]; // 返回新的播放模式
       },
-      cacheSongWithNotifications: async (music?: Music) => {
+      saveSongWithNotifications: async (music?: Music) => {
         const { handleSave, currentMusic } = get();
         if (!music) {
           if (!currentMusic) throw new Error("未选中歌曲, 无法下载");

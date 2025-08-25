@@ -1,7 +1,7 @@
 // src-tauri/src/lib.rs
 
 pub mod commands;
-pub mod db;
+pub mod music;
 pub mod ffi;
 pub mod model;
 pub mod my_util;

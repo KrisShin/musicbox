@@ -87,6 +87,14 @@ export const searchMusic = async (
 export const musicDetail = async (music: Music): Promise<Music> => {
   try {
     const fullDetailUrl = `${BASE_URL}${music.url}`;
+    const dbMusic = await invoke<Music | null>('get_music_detail_by_id', {
+      songId: music.song_id,
+    });
+
+    if (dbMusic && dbMusic.play_id && dbMusic.file_path) {
+      console.log(`(DB) 已有详情，直接返回: ${music.title}`);
+      return dbMusic;
+    }
 
     console.log(`(Crawler) 数据库无详情，开始爬取: ${music.title}`);
     music = await fetchMusicDetailInfo(music, fullDetailUrl)
@@ -101,6 +109,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
 
     // 调用后端更新数据库
     await invoke('update_music_detail', { payload: payload });
+    await invoke('cache_music_and_get_file_path', { music: payload });
     console.log(`(Crawler) 成功爬取并更新到数据库: ${music.title}`);
 
     console.log(`(DB) 重新获取刚更新的详情: ${music.title}`);
@@ -113,6 +122,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     }
 
     // 返回从数据库中拿到的最终数据，它可能包含了后端处理过的信息（如 Base64 封面）
+    console.log(`(Crawler) 最终返回详情: ${finalMusic}`);
     return finalMusic;
 
   } catch (error) {
