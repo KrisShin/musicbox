@@ -475,3 +475,83 @@ pub async fn cache_music_and_get_file_path(
         urlencoding::encode(&file_name)
     ))
 }
+
+pub async fn export_music_file(
+    app_handle: AppHandle,
+    pool: &DbPool,
+    music_ids:  Vec<String>,
+) -> Result<String, String> {
+    if music_ids.is_empty() {
+        return Err("没有选择任何歌曲".to_string());
+    }
+    // 动态构建 SQL 查询语句中的占位符 "(?, ?, ?)"
+    let total = music_ids.len(); // 先保存长度，避免后续 move
+    let placeholders = music_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!("SELECT * FROM music WHERE song_id IN ({})", placeholders);
+
+    // 构建查询
+    let mut query = sqlx::query_as::<_, Music>(&sql);
+    for id in music_ids {
+        query = query.bind(id);
+    }
+
+    // 执行查询并返回所有匹配的歌曲
+    let music_list = query.fetch_all(pool).await.map_err(|e| e.to_string())?;
+
+    // 1. 获取一次公共下载目录
+    let download_path = app_handle
+        .path()
+        .download_dir()
+        .or_else(|_| Err("无法获取下载目录".to_string()))?;
+
+    // 2. [优化] 一次性从数据库查询所有需要的歌曲信息
+
+    let mut success_count = 0;
+    let mut fail_count = 0;
+    let mut skipped_count = 0;
+
+    // 3. 循环处理查询到的歌曲列表
+    for music in music_list {
+        if let Some(source_path) = music.file_path.filter(|p| !p.is_empty()) {
+            // 净化文件名
+            let sanitized_title = music.title.replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+            let sanitized_artist = music.artist.replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+            
+            // 处理文件名冲突
+            let base_filename = format!("{} - {}.mp3", sanitized_title, sanitized_artist);
+            let mut final_path = download_path.join(&base_filename);
+            let mut counter = 1;
+
+            while final_path.exists() {
+                let new_filename = format!("{} - {} ({}).mp3", sanitized_title, sanitized_artist, counter);
+                final_path = download_path.join(new_filename);
+                counter += 1;
+            }
+
+            // 执行文件复制
+            match std::fs::copy(&source_path, &final_path) {
+                Ok(_) => success_count += 1,
+                Err(e) => {
+                    println!("复制文件 {} 失败: {}", source_path, e);
+                    fail_count += 1;
+                }
+            }
+        } else {
+            println!("歌曲 {} ({}) 未缓存，跳过导出。", music.title, music.song_id);
+            skipped_count += 1;
+        }
+    }
+    
+    // 4. 返回一个更详细的总结
+    if success_count > 0 {
+        Ok(format!(
+            "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。",
+            total, success_count, fail_count, skipped_count
+        ))
+    } else {
+        Err(format!(
+            "导出失败。总共 {} 首，失败 {} 首，未缓存跳过 {} 首。",
+            total, fail_count, skipped_count
+        ))
+    }
+}

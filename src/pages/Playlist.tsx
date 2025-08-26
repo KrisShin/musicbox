@@ -156,8 +156,7 @@ const PlaylistPage: React.FC = () => {
     const startIndex =
       mode === "shuffle" ? Math.floor(Math.random() * musicQueue.length) : 0;
     messageApi.success(
-      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${
-        selectedPlaylist?.name || "歌单"
+      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${selectedPlaylist?.name || "歌单"
       }, 即将播放 ${musicQueue[startIndex].title}`
     );
     startPlayback(musicQueue, startIndex).catch((error) =>
@@ -168,7 +167,7 @@ const PlaylistPage: React.FC = () => {
   const handleDownload = async (music: Music) => {
     try {
       messageApi.success(`开始下载 ${music.title}...`);
-      handleSave(music)
+      handleSave([music])
         .then(async (_: string) => {
           messageApi.destroy();
           messageApi.success(`${music.title}下载完成`);
@@ -241,7 +240,13 @@ const PlaylistPage: React.FC = () => {
             >
               随机播放
             </Button>
-            <Button type="primary" icon={<DownloadOutlined />} disabled>
+            <Button type="primary" icon={<DownloadOutlined />} onClick={() => {
+              messageApi.info(`正在下载 ${selectedPlaylistMusic.length} 首歌曲...`, 10);
+              handleSave(selectedPlaylistMusic.map(s => s.music)).then(() => {
+                messageApi.destroy();
+                messageApi.success(`全部歌曲下载完成`);
+              })
+            }}>
               下载全部
             </Button>
           </Flex>

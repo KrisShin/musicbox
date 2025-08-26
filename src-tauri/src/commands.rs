@@ -148,6 +148,16 @@ pub async fn cache_music_and_get_file_path(
         .await
         .map_err(|e| e.to_string())
 }
+#[tauri::command]
+pub async fn export_music_file(
+    app_handle: AppHandle,
+    music_ids: Vec<String>,
+    state: tauri::State<'_, DbPool>,
+) -> Result<String, String> {
+    music::export_music_file(app_handle, state.inner(), music_ids)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
@@ -166,5 +176,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         get_music_detail_by_id,
         update_music_cache_path,
         cache_music_and_get_file_path,
+        export_music_file,
     ]
 }

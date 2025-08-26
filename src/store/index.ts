@@ -3,10 +3,10 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 import { Music } from "../types";
 import { musicDetail, searchMusic } from "../util/crawler";
-import { writeFile } from "@tauri-apps/plugin-fs";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { save } from "@tauri-apps/plugin-dialog";
-import { platform } from "@tauri-apps/plugin-os";
+// import { writeFile } from "@tauri-apps/plugin-fs";
+// import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+// import { save } from "@tauri-apps/plugin-dialog";
+// import { platform } from "@tauri-apps/plugin-os";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 // 1. 定义与后端交互的自定义存储引擎
@@ -53,7 +53,7 @@ interface AppState {
   _playIndexMusic: (index: number) => void;
   handleNext: () => void;
   handlePrev: () => void;
-  handleSave: (music: Music) => Promise<string>;
+  handleSave: (musicList: Music[]) => Promise<string>;
   handleClose: () => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
@@ -152,71 +152,54 @@ export const useAppStore = create<AppState>()(
         handleDetail(playQueue[index]);
         startPlayback(playQueue, index);
       },
-      handleSave: async (music: Music) => {
+      handleSave: async (musicList: Music[]) => {
         try {
-          // TODO: 修改下载为从缓存复制并保存文件到下载目录
-          const musicWithDetail = await musicDetail(music);
-          if (!musicWithDetail.play_url) {
-            throw new Error("未能获取有效的播放链接");
-          }
-
-          const currentPlatform = platform();
-          const isMobile =
-            currentPlatform === "android" || currentPlatform === "ios";
-
-          // --- 桌面端逻辑 ---
-          if (!isMobile) {
-            console.log("(下载) 桌面端平台，调用后台静默下载...");
-            const savePath = await invoke<string>("download_music_desktop", {
-              url: musicWithDetail.play_url,
-              title: musicWithDetail.title,
-              artist: musicWithDetail.artist,
-            });
-            console.log(`(下载) 桌面端下载成功，路径: ${savePath}`);
-            return savePath; // 返回保存路径
-          }
-
-          // --- 移动端逻辑 ---
-          else {
-            console.log("(下载) 移动端平台，弹出保存对话框...");
-            const suggestedFilename = `${musicWithDetail.title} - ${musicWithDetail.artist}.mp3`;
-
-            // 弹出保存对话框，让用户选择位置
-            // filePath 是一个带授权的 content:// URI
-            const filePath = await save({
-              title: "保存到...",
-              defaultPath: `Download/${suggestedFilename}`, // 为用户提供一个友好的默认文件名
-            });
-
-            // 如果用户取消了选择，filePath 会是 null
-            if (!filePath) {
-              console.log("(下载) 用户取消保存。");
-              throw new Error(`取消下载`);
+          console.log({ type: 'info', content: `正在准备...` });
+          const musicIds = []
+          for (const music of musicList) {
+            if (!music.file_path) {
+              await get().handleDetail(music);
             }
-
-            console.log(`(下载) 用户选择了路径，开始下载: ${filePath}`);
-
-            // 使用 tauriFetch 下载文件内容
-            const response = await tauriFetch(musicWithDetail.play_url, {
-              method: "GET",
-            });
-            if (!response.ok)
-              throw new Error(`HTTP 请求失败: ${response.status}`);
-
-            const arrayBuffer = await response.arrayBuffer();
-
-            // 使用 writeFile 写入到用户刚刚授权的 content:// URI
-            await writeFile(filePath, new Uint8Array(arrayBuffer));
-
-            console.log("(下载) 移动端下载成功！");
-            return filePath;
+            musicIds.push(music.song_id)
           }
+
+          // 步骤 1: 从后台获取歌曲的详细信息，包括缓存路径
+          console.log({ type: 'info', content: '正在获取歌曲信息...' });
+          const songsToSave = await invoke<Music[]>('export_music_file', {
+            musicIds: musicIds,
+          });
+
+          // 步骤 2: 循环调用插件命令来保存每个文件
+          let success_count = 0;
+          let fail_count = 0;
+          for (const song of songsToSave) {
+            if (song.file_path) {
+              const fileName = `${song.title} - ${song.artist}.mp3`;
+              try {
+                await invoke('plugin:file-saver|save_file', {
+                  fileName: fileName,
+                  sourcePath: song.file_path
+                });
+                success_count++;
+                console.log({ type: 'info', content: `成功保存: ${fileName}` });
+              } catch (e) {
+                fail_count++;
+                console.error(`保存失败: ${fileName}`, e);
+                console.log({ type: 'error', content: `保存失败: ${fileName}: ${e}` });
+              }
+            }
+          }
+
+          const resultMsg = `导出完成！成功 ${success_count} 首，失败 ${fail_count} 首。`;
+          console.log(resultMsg);
+          return resultMsg;
+
         } catch (error: any) {
-          console.error("下载失败:", error);
-          throw new Error(`${error}`);
+          console.error('保存文件失败:', error);
+          console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
+          throw new Error(error)
         }
       },
-
       handleNext: () => {
         const { playMode, playingMusicIndex, playQueue, _playIndexMusic } =
           get();
@@ -314,7 +297,7 @@ export const useAppStore = create<AppState>()(
           }
 
           // 3. 执行核心的缓存操作
-          const file_path = await handleSave(music);
+          const file_path = await handleSave([music]);
 
           // 4. 缓存成功后，发送“完成”通知
           if (hasPermission) {
