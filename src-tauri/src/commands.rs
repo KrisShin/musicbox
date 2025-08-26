@@ -118,11 +118,11 @@ async fn ignore_update(version: String, state: tauri::State<'_, DbPool>) -> Resu
 }
 
 #[tauri::command]
-pub async fn get_music_detail_by_id(
-    song_id: String,
+pub async fn get_music_list_by_id(
+    song_ids: Vec<String>,
     state: tauri::State<'_, DbPool>,
-) -> Result<Option<Music>, String> {
-    music::get_music_detail_by_id(state.inner(), song_id)
+) -> Result<Option<Vec<Music>>, String> {
+    music::get_music_list_by_id(state.inner(), song_ids)
         .await
         .map_err(|e| e.to_string())
 }
@@ -173,7 +173,7 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         get_app_setting,
         check_for_updates,
         ignore_update,
-        get_music_detail_by_id,
+        get_music_list_by_id,
         update_music_cache_path,
         cache_music_and_get_file_path,
         export_music_file,

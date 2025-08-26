@@ -341,17 +341,24 @@ pub async fn get_music_by_playlist_id(
     Ok(music_list)
 }
 
-pub async fn get_music_detail_by_id(
+pub async fn get_music_list_by_id(
     pool: &DbPool,
-    song_id: String,
-) -> Result<Option<Music>, String> {
-    let music_detail = sqlx::query_as::<_, Music>("SELECT * FROM music WHERE song_id = ?")
-        .bind(song_id)
-        .fetch_optional(pool) // 使用 .0 来访问内部的 pool
-        .await
-        .map_err(|e| e.to_string())?;
+    music_ids: Vec<String>,
+) -> Result<Option<Vec<Music>>, String> {
+    // 动态构建 SQL 查询语句中的占位符 "(?, ?, ?)"
+    let placeholders = music_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!("SELECT * FROM music WHERE song_id IN ({})", placeholders);
 
-    Ok(music_detail)
+    // 构建查询
+    let mut query = sqlx::query_as::<_, Music>(&sql);
+    for id in music_ids {
+        query = query.bind(id);
+    }
+
+    // 执行查询并返回所有匹配的歌曲
+    let music_list = query.fetch_all(pool).await.map_err(|e| e.to_string())?;
+
+    Ok(Some(music_list))
 }
 
 pub async fn update_music_cache_path(
@@ -479,24 +486,15 @@ pub async fn cache_music_and_get_file_path(
 pub async fn export_music_file(
     app_handle: AppHandle,
     pool: &DbPool,
-    music_ids:  Vec<String>,
+    music_ids: Vec<String>,
 ) -> Result<String, String> {
     if music_ids.is_empty() {
         return Err("没有选择任何歌曲".to_string());
     }
-    // 动态构建 SQL 查询语句中的占位符 "(?, ?, ?)"
     let total = music_ids.len(); // 先保存长度，避免后续 move
-    let placeholders = music_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("SELECT * FROM music WHERE song_id IN ({})", placeholders);
-
-    // 构建查询
-    let mut query = sqlx::query_as::<_, Music>(&sql);
-    for id in music_ids {
-        query = query.bind(id);
-    }
-
-    // 执行查询并返回所有匹配的歌曲
-    let music_list = query.fetch_all(pool).await.map_err(|e| e.to_string())?;
+    let music_list = get_music_list_by_id(pool, music_ids.clone())
+        .await?
+        .ok_or("未找到任何歌曲".to_string())?;
 
     // 1. 获取一次公共下载目录
     let download_path = app_handle
@@ -514,16 +512,23 @@ pub async fn export_music_file(
     for music in music_list {
         if let Some(source_path) = music.file_path.filter(|p| !p.is_empty()) {
             // 净化文件名
-            let sanitized_title = music.title.replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
-            let sanitized_artist = music.artist.replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
-            
+            let sanitized_title = music
+                .title
+                .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+            let sanitized_artist = music
+                .artist
+                .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+
             // 处理文件名冲突
             let base_filename = format!("{} - {}.mp3", sanitized_title, sanitized_artist);
             let mut final_path = download_path.join(&base_filename);
             let mut counter = 1;
 
             while final_path.exists() {
-                let new_filename = format!("{} - {} ({}).mp3", sanitized_title, sanitized_artist, counter);
+                let new_filename = format!(
+                    "{} - {} ({}).mp3",
+                    sanitized_title, sanitized_artist, counter
+                );
                 final_path = download_path.join(new_filename);
                 counter += 1;
             }
@@ -537,11 +542,14 @@ pub async fn export_music_file(
                 }
             }
         } else {
-            println!("歌曲 {} ({}) 未缓存，跳过导出。", music.title, music.song_id);
+            println!(
+                "歌曲 {} ({}) 未缓存，跳过导出。",
+                music.title, music.song_id
+            );
             skipped_count += 1;
         }
     }
-    
+
     // 4. 返回一个更详细的总结
     if success_count > 0 {
         Ok(format!(

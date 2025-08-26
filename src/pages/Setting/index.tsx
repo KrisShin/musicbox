@@ -6,7 +6,7 @@ import { useGlobalMessage } from '../../components/MessageHook';
 
 
 const SettingPage: React.FC = () => {
-    const iconSize = '20px';
+    const iconSize = '18px';
     const settings = [
         { title: '清除缓存', icon: <ClearOutlined style={{ fontSize: iconSize }} />, desc: "清空所有缓存的音乐文件, 会让播放加载变慢" },
         { title: '导入本地音乐', icon: <ImportOutlined style={{ fontSize: iconSize }} />, desc: "导入你自己的音乐文件夹" },

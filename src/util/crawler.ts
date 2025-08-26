@@ -87,13 +87,13 @@ export const searchMusic = async (
 export const musicDetail = async (music: Music): Promise<Music> => {
   try {
     const fullDetailUrl = `${BASE_URL}${music.url}`;
-    const dbMusic = await invoke<Music | null>('get_music_detail_by_id', {
-      songId: music.song_id,
-    });
+    const dbMusic = await invoke<Music[]>('get_music_list_by_id', {
+      songIds: [music.song_id],
+    }).then(res => res ? res[0] : null);
 
     if (dbMusic && dbMusic.play_id && dbMusic.file_path) {
       console.log(`(DB) 已有详情，直接返回: ${music.title}`);
-      return {...dbMusic, file_path: `http://127.0.0.1:38915/${dbMusic.file_path.split('music_cache').pop()}`};
+      return { ...dbMusic, file_path: `http://127.0.0.1:38915/${dbMusic.file_path.split('music_cache').pop()}` };
     }
 
     console.log(`(Crawler) 数据库无详情，开始爬取: ${music.title}`);
@@ -113,9 +113,9 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     console.log(`(Crawler) 成功爬取并更新到数据库: ${music.title}`);
 
     console.log(`(DB) 重新获取刚更新的详情: ${music.title}`);
-    const finalMusic = await invoke<Music | null>('get_music_detail_by_id', {
-      songId: music.song_id,
-    });
+    const finalMusic = await invoke<Music[]>('get_music_list_by_id', {
+      songIds: [music.song_id],
+    }).then(res => res ? res[0] : null);;
 
     if (!finalMusic) {
       throw new Error("更新详情后未能从数据库中重新获取，请检查数据库逻辑！");

@@ -13,6 +13,7 @@ use std::{
     path::PathBuf,
 };
 
+use crate::my_util::{MEDIA_ADDR, parse_range};
 use tauri::Manager; // 确保导入 Manager
 
 #[cfg(desktop)]
@@ -21,8 +22,6 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
-
-use crate::my_util::{MEDIA_ADDR, parse_range};
 
 // [核心改动] 升级本地媒体服务器以支持 Range Requests
 fn start_media_server(cache_path: PathBuf) {

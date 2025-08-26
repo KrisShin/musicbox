@@ -245,6 +245,7 @@ const PlaylistPage: React.FC = () => {
               handleSave(selectedPlaylistMusic.map(s => s.music)).then(() => {
                 messageApi.destroy();
                 messageApi.success(`全部歌曲下载完成`);
+                fetchPlaylistMusic();
               })
             }}>
               下载全部

@@ -3,11 +3,12 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 import { Music } from "../types";
 import { musicDetail, searchMusic } from "../util/crawler";
-// import { writeFile } from "@tauri-apps/plugin-fs";
-// import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-// import { save } from "@tauri-apps/plugin-dialog";
-// import { platform } from "@tauri-apps/plugin-os";
+import { copyFile, writeFile } from "@tauri-apps/plugin-fs";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { platform } from "@tauri-apps/plugin-os";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { join } from "@tauri-apps/api/path";
 
 // 1. 定义与后端交互的自定义存储引擎
 const tauriStorage = {
@@ -47,7 +48,7 @@ interface AppState {
 
   // Actions
   handleSearch: (value: string) => Promise<void>;
-  handleDetail: (music: Music) => Promise<void>;
+  handleDetail: (music: Music) => Promise<Music>;
   startPlayback: (songs: Music[], startIndex: number) => Promise<void>;
   handlePlayPause: () => void;
   _playIndexMusic: (index: number) => void;
@@ -114,7 +115,7 @@ export const useAppStore = create<AppState>()(
       handleDetail: async (music: Music) => {
         try {
           const result = await musicDetail(music);
-          set({ currentMusic: result });
+          return result;
         } catch (error) {
           throw error;
         }
@@ -135,8 +136,8 @@ export const useAppStore = create<AppState>()(
         try {
           await get()
             .handleDetail(musicToPlay)
-            .then(() => {
-              set({ isPlaying: true });
+            .then((music: Music) => {
+              set({ isPlaying: true, currentMusic: music });
             });
         } catch (error) {
           throw new Error("获取歌曲详情失败");
@@ -162,38 +163,69 @@ export const useAppStore = create<AppState>()(
             }
             musicIds.push(music.song_id)
           }
+          const platformName = platform();
+          const isMobile = platformName === 'ios' || platformName === 'android';
 
-          // 步骤 1: 从后台获取歌曲的详细信息，包括缓存路径
-          console.log({ type: 'info', content: '正在获取歌曲信息...' });
-          const songsToSave = await invoke<Music[]>('export_music_file', {
-            musicIds: musicIds,
-          });
+          if (!isMobile) {
+            // 步骤 1: 从后台获取歌曲的详细信息，包括缓存路径
+            console.log({ type: 'info', content: '正在获取歌曲信息...' });
+            await invoke<Music[]>('export_music_file', {
+              musicIds: musicIds,
+            });
 
-          // 步骤 2: 循环调用插件命令来保存每个文件
-          let success_count = 0;
-          let fail_count = 0;
-          for (const song of songsToSave) {
-            if (song.file_path) {
-              const fileName = `${song.title} - ${song.artist}.mp3`;
-              try {
-                await invoke('plugin:file-saver|save_file', {
-                  fileName: fileName,
-                  sourcePath: song.file_path
-                });
-                success_count++;
-                console.log({ type: 'info', content: `成功保存: ${fileName}` });
-              } catch (e) {
-                fail_count++;
-                console.error(`保存失败: ${fileName}`, e);
-                console.log({ type: 'error', content: `保存失败: ${fileName}: ${e}` });
+            const resultMsg = `导出完成！成功 ${musicList.length} 首`;
+            console.log(resultMsg);
+            return resultMsg;
+          } else {
+            const dbMusicList = await invoke<Music[]>('get_music_list_by_id', {
+              songIds: musicIds,
+            })
+
+            console.log({ type: 'info', content: '运行在移动端，启动文件保存流程...' });
+
+            // 2a. 让用户选择一个保存目录
+            const selectedDir = await openDialog({
+              title: '请选择保存位置',
+              directory: true, // 关键：让用户选择文件夹
+              multiple: false,
+            });
+
+            if (!selectedDir) {
+              const cancelMsg = '用户取消了选择';
+              console.log({ type: 'info', content: cancelMsg });
+              return cancelMsg;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            // 2b. 循环复制文件到目标目录
+            console.log({ type: 'info', content: `开始导出到: ${selectedDir}` });
+            for (const music of dbMusicList) {
+              if (music.file_path) {
+                try {
+                  // 构造目标文件名
+                  const sanitizedTitle = sanitizeFilename(music.title);
+                  const sanitizedArtist = sanitizeFilename(music.artist);
+                  const baseFilename = `${sanitizedTitle} - ${sanitizedArtist}.mp3`;
+
+                  // 在移动端，我们简化处理，不检查文件名冲突，直接覆盖或让用户处理
+                  const destinationPath = await join(selectedDir, baseFilename);
+
+                  // 使用 fs 插件的 copyFile
+                  await copyFile(music.file_path, destinationPath);
+                  successCount++;
+                } catch (e) {
+                  console.error(`复制文件失败: ${music.title}`, e);
+                  failCount++;
+                }
               }
             }
+
+            const resultMsg = `导出完成！成功 ${successCount} 首，失败 ${failCount} 首。`;
+            console.log({ type: 'success', content: resultMsg });
+            return resultMsg;
           }
-
-          const resultMsg = `导出完成！成功 ${success_count} 首，失败 ${fail_count} 首。`;
-          console.log(resultMsg);
-          return resultMsg;
-
         } catch (error: any) {
           console.error('保存文件失败:', error);
           console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
@@ -249,7 +281,6 @@ export const useAppStore = create<AppState>()(
         }
         _playIndexMusic(prevIndex);
       },
-
       handleClose: () => {
         set({
           currentMusic: null,
