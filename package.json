@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.0.0",
-  "releaseNotes": "Release 20250821 \n1. 修复了部分歌曲封面图加载失败 \n2. 优化了歌单页列表显示 \n3.新增歌单列表下载功能 \n4.支持了桌面端静默下载到下载文件夹 \n5. 修复了部分已知bug",
+  "version": "2.0.1",
+  "releaseNotes": "Release 20250905 \n1. 新增了缓存通知 \n2. 新增了歌曲文件缓存 \n3. 支持了安卓端文件批量下载 \n4. 新增了设置页面 \n5. 调整了dock栏图标高度和标签显示 \n6. 修复了部分已知bug",
   "type": "module",
   "scripts": {
     "dev": "vite",
