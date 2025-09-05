@@ -7,14 +7,14 @@ import { useGlobalMessage } from "../MessageHook";
 
 const { Text } = Typography;
 
-const MusicListItem = memo(({ item, index, primaryThemeColor, handleDetail }: { item: Music, index: number, primaryThemeColor: string, handleDetail: Function }) => {
+const MusicListItem = memo(({ item, index, primaryThemeColor, handlePlayFromSearch }: { item: Music, index: number, primaryThemeColor: string, handlePlayFromSearch: Function }) => {
     // console.log(`Rendering item: ${item.title}`); // 您可以加上这个来观察渲染次数
     const messageApi = useGlobalMessage();
 
-    const onHandleDetail = (music: Music, index: number) => {
+    const onHandlePlayFromSearch = (music: Music, index: number) => {
         try {
             messageApi.info(`正在加载 ${music.title} 的详情...`, 1.5);
-            handleDetail(index)
+            handlePlayFromSearch(index)
         } catch (error) {
             messageApi.error(`播放 ${music.title}失败, 请稍后重试`);
             console.error(`播放 ${music.title} 失败:`, error);
@@ -31,7 +31,7 @@ const MusicListItem = memo(({ item, index, primaryThemeColor, handleDetail }: { 
                 <Button
                     type="primary"
                     icon={<PlayCircleOutlined />}
-                    onClick={() => onHandleDetail(item, index)}
+                    onClick={() => onHandlePlayFromSearch(item, index)}
                 />,
             ]}
         >

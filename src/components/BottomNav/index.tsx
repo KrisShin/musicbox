@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Flex, Button } from 'antd';
-import { SearchOutlined, UnorderedListOutlined, PlaySquareOutlined } from '@ant-design/icons';
+import { SearchOutlined, UnorderedListOutlined, PlaySquareOutlined, SettingOutlined } from '@ant-design/icons';
 
 const { Footer } = Layout;
 
@@ -9,11 +9,14 @@ interface BottomNavProps {
     onTabChange: (tab: string) => void;
 }
 
+const iconSize = '18px'
+
 const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
     const navItems = [
-        { key: 'search', icon: <SearchOutlined />, label: '搜索' },
-        { key: 'playlist', icon: <UnorderedListOutlined />, label: '歌单' },
-        { key: 'player', icon: <PlaySquareOutlined />, label: '播放' },
+        { key: 'search', icon: <SearchOutlined style={{ fontSize: iconSize }} />, label: '搜索' },
+        { key: 'playlist', icon: <UnorderedListOutlined style={{ fontSize: iconSize }} />, label: '歌单' },
+        { key: 'player', icon: <PlaySquareOutlined style={{ fontSize: iconSize }} />, label: '播放' },
+        { key: 'setting', icon: <SettingOutlined style={{ fontSize: iconSize }} />, label: '设置' },
     ];
 
     return (
@@ -38,7 +41,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
                         onClick={() => onTabChange(item.key)}
                         style={{ flexDirection: 'column', height: 'auto', padding: '6px 10px' }}
                     >
-                        {/* <span style={{ fontSize: '12px' }}>{item.label}</span> */}
+                        <span style={{ fontSize: '12px' }}>{item.label}</span>
                     </Button>
                 ))}
             </Flex>

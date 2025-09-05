@@ -1,11 +1,15 @@
+use std::path::Path;
+
 use sqlx::QueryBuilder;
+use tauri::{AppHandle, Manager};
+use tauri_plugin_http::reqwest;
 
 use crate::{
     model::{
         ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
         UpdateDetailPayload,
     },
-    my_util::DbPool,
+    my_util::{DbPool, MEDIA_ADDR},
 };
 
 use super::my_util::img_url_to_b64;
@@ -337,15 +341,225 @@ pub async fn get_music_by_playlist_id(
     Ok(music_list)
 }
 
-pub async fn get_music_detail_by_id(
+pub async fn get_music_list_by_id(
     pool: &DbPool,
-    song_id: String,
-) -> Result<Option<Music>, String> {
-    let music_detail = sqlx::query_as::<_, Music>("SELECT * FROM music WHERE song_id = ?")
+    music_ids: Vec<String>,
+) -> Result<Option<Vec<Music>>, String> {
+    // 动态构建 SQL 查询语句中的占位符 "(?, ?, ?)"
+    let placeholders = music_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!("SELECT * FROM music WHERE song_id IN ({})", placeholders);
+
+    // 构建查询
+    let mut query = sqlx::query_as::<_, Music>(&sql);
+    for id in music_ids {
+        query = query.bind(id);
+    }
+
+    // 执行查询并返回所有匹配的歌曲
+    let music_list = query.fetch_all(pool).await.map_err(|e| e.to_string())?;
+
+    Ok(Some(music_list))
+}
+
+pub async fn update_music_cache_path(
+    pool: &DbPool,
+    song_id: &str, // 使用 &str 避免不必要的内存分配
+    file_path: &str,
+) -> Result<(), sqlx::Error> {
+    // 这里的 ?1 和 ?2 占位符顺序与 .bind() 的调用顺序一致
+    sqlx::query("UPDATE music SET file_path = ?1 WHERE song_id = ?2")
+        .bind(file_path)
         .bind(song_id)
-        .fetch_optional(pool) // 使用 .0 来访问内部的 pool
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+// pub async fn update_music_last_play_time(pool: &DbPool, song_id: i64) -> Result<(), sqlx::Error> {
+//     sqlx::query("UPDATE music SET last_palyed_at = ? WHERE song_id = ?")
+//         .bind(song_id)
+//         .execute(pool)
+//         .await?;
+
+//     Ok(song_id)
+// }
+
+pub async fn cache_music_and_get_file_path(
+    app_handle: AppHandle,
+    pool: &DbPool,
+    music: Music,
+) -> Result<String, String> {
+    // 4. 使用 play_id (如果存在) 或 song_id 作为唯一文件名，避免冲突
+    let sanitized_title = music
+        .title
+        .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+    let sanitized_artist = music
+        .artist
+        .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+    let file_name = format!(
+        "{}_{}-{}.mp3",
+        music.song_id, sanitized_title, sanitized_artist
+    );
+
+    // 1. 优先检查从前端传来的 music 对象中是否已包含有效的缓存路径
+    if let Some(path_str) = music.file_path.as_deref() {
+        if !path_str.is_empty() && Path::new(path_str).exists() {
+            println!("缓存命中 (来自前端对象): {}", path_str);
+            return Ok(format!(
+                "http://{}/{}",
+                MEDIA_ADDR,
+                urlencoding::encode(&file_name)
+            ));
+        }
+    }
+
+    // 2. 获取应用数据目录 (对桌面和移动端都有效)
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .or_else(|_| Err("无法获取应用数据目录".to_string()))?;
+
+    let cache_dir = app_data_dir.join("music_cache");
+
+    // 3. 同步地确保缓存目录存在
+    if !cache_dir.exists() {
+        tokio::fs::create_dir_all(&cache_dir)
+            .await
+            .map_err(|e| format!("创建缓存目录失败: {}", e))?;
+    }
+
+    let local_path = cache_dir.join(&file_name);
+    let local_path_str = local_path.to_string_lossy().into_owned();
+
+    // 5. 再次检查文件是否已在磁盘上存在 (防止数据库与文件系统不同步)
+    if local_path.exists() {
+        println!("缓存命中 (来自磁盘检查): {:?}", &local_path);
+        update_music_cache_path(&pool, &music.song_id, &local_path_str)
+            .await
+            .map_err(|e| format!("(同步)更新数据库失败: {}", e))?;
+        return Ok(format!(
+            "http://{}/{}",
+            MEDIA_ADDR,
+            urlencoding::encode(&file_name)
+        ));
+    }
+
+    // --- 文件不存在，开始下载 ---
+    // [修复] 使用 `?` 解包 play_url 的 Result
+    let play_url = music
+        .play_url
+        .as_deref()
+        .ok_or("歌曲缺少 play_url，无法下载".to_string())?;
+
+    println!("开始缓存: {} -> {}", music.title, &local_path_str);
+
+    // [修复] 使用 `?` 解包网络请求的 Result
+    let response = reqwest::get(play_url)
+        .await
+        .map_err(|e| format!("网络请求失败: {}", e))?;
+
+    // [修复] 现在 response 是 Response 类型，可以安全调用 .status()
+    if !response.status().is_success() {
+        return Err(format!("下载失败，状态码: {}", response.status()));
+    }
+
+    // [修复] 使用 `?` 解包获取 bytes 的 Result
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    tokio::fs::write(&local_path, &bytes)
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(music_detail)
+    println!("缓存完成: {}", music.title);
+
+    // 7. 下载成功后，更新数据库记录
+    update_music_cache_path(&pool, &music.song_id, &local_path_str)
+        .await
+        .map_err(|e| format!("(下载后)更新数据库失败: {}", e))?;
+
+    Ok(format!(
+        "http://{}/{}",
+        MEDIA_ADDR,
+        urlencoding::encode(&file_name)
+    ))
+}
+
+pub async fn export_music_file(
+    app_handle: AppHandle,
+    pool: &DbPool,
+    music_ids: Vec<String>,
+) -> Result<String, String> {
+    if music_ids.is_empty() {
+        return Err("没有选择任何歌曲".to_string());
+    }
+    let total = music_ids.len(); // 先保存长度，避免后续 move
+    let music_list = get_music_list_by_id(pool, music_ids.clone())
+        .await?
+        .ok_or("未找到任何歌曲".to_string())?;
+
+    // 1. 获取一次公共下载目录
+    let download_path = app_handle
+        .path()
+        .download_dir()
+        .or_else(|_| Err("无法获取下载目录".to_string()))?;
+
+    // 2. [优化] 一次性从数据库查询所有需要的歌曲信息
+
+    let mut success_count = 0;
+    let mut fail_count = 0;
+    let mut skipped_count = 0;
+
+    // 3. 循环处理查询到的歌曲列表
+    for music in music_list {
+        if let Some(source_path) = music.file_path.filter(|p| !p.is_empty()) {
+            // 净化文件名
+            let sanitized_title = music
+                .title
+                .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+            let sanitized_artist = music
+                .artist
+                .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+
+            // 处理文件名冲突
+            let base_filename = format!("{} - {}.mp3", sanitized_title, sanitized_artist);
+            let mut final_path = download_path.join(&base_filename);
+            let mut counter = 1;
+
+            while final_path.exists() {
+                let new_filename = format!(
+                    "{} - {} ({}).mp3",
+                    sanitized_title, sanitized_artist, counter
+                );
+                final_path = download_path.join(new_filename);
+                counter += 1;
+            }
+
+            // 执行文件复制
+            match std::fs::copy(&source_path, &final_path) {
+                Ok(_) => success_count += 1,
+                Err(e) => {
+                    println!("复制文件 {} 失败: {}", source_path, e);
+                    fail_count += 1;
+                }
+            }
+        } else {
+            println!(
+                "歌曲 {} ({}) 未缓存，跳过导出。",
+                music.title, music.song_id
+            );
+            skipped_count += 1;
+        }
+    }
+
+    // 4. 返回一个更详细的总结
+    if success_count > 0 {
+        Ok(format!(
+            "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。",
+            total, success_count, fail_count, skipped_count
+        ))
+    } else {
+        Err(format!(
+            "导出失败。总共 {} 首，失败 {} 首，未缓存跳过 {} 首。",
+            total, fail_count, skipped_count
+        ))
+    }
 }

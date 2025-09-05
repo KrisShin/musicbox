@@ -81,7 +81,7 @@ const SearchPage: React.FC = () => {
                   item={item}
                   index={index}
                   primaryThemeColor={primaryThemeColor}
-                  handleDetail={handlePlayFromSearch}
+                  handlePlayFromSearch={handlePlayFromSearch}
                 />
               )}
             />
