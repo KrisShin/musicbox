@@ -1,6 +1,6 @@
 [package]
 name = "musicbox"
-version = "2.0.0"
+version = "2.0.1"
 description = "MusicBox multi-platform by Tauri"
 authors = ["Kris"]
 edition = "2024"
