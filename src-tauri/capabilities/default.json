@@ -11,11 +11,12 @@
     "clipboard-manager:allow-write-text",
     "dialog:default",
     "fs:allow-write-file",
+    "fs:allow-copy-file",
     {
       "identifier": "fs:scope",
       "allow": [
         {
-          "path": "**"
+          "path": "$DOWNLOAD/**"
         }
       ]
     },

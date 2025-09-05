@@ -3,11 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 import { Music } from "../types";
 import { musicDetail, searchMusic } from "../util/crawler";
-import { copyFile } from "@tauri-apps/plugin-fs";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { platform } from "@tauri-apps/plugin-os";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { join } from "@tauri-apps/api/path";
 
 // 1. 定义与后端交互的自定义存储引擎
 const tauriStorage = {
@@ -162,69 +158,14 @@ export const useAppStore = create<AppState>()(
             }
             musicIds.push(music.song_id)
           }
-          const platformName = platform();
-          const isMobile = platformName === 'ios' || platformName === 'android';
+          console.log({ type: 'info', content: '正在获取歌曲信息...' });
+          await invoke<Music[]>('export_music_file', {
+            musicIds: musicIds,
+          });
 
-          if (!isMobile) {
-            // 步骤 1: 从后台获取歌曲的详细信息，包括缓存路径
-            console.log({ type: 'info', content: '正在获取歌曲信息...' });
-            await invoke<Music[]>('export_music_file', {
-              musicIds: musicIds,
-            });
-
-            const resultMsg = `导出完成！成功 ${musicList.length} 首`;
-            console.log(resultMsg);
-            return resultMsg;
-          } else {
-            const dbMusicList = await invoke<Music[]>('get_music_list_by_id', {
-              songIds: musicIds,
-            })
-
-            console.log({ type: 'info', content: '运行在移动端，启动文件保存流程...' });
-
-            // 2a. 让用户选择一个保存目录
-            const selectedDir = await openDialog({
-              title: '请选择保存位置',
-              directory: true, // 关键：让用户选择文件夹
-              multiple: false,
-            });
-
-            if (!selectedDir) {
-              const cancelMsg = '用户取消了选择';
-              console.log({ type: 'info', content: cancelMsg });
-              return cancelMsg;
-            }
-
-            let successCount = 0;
-            let failCount = 0;
-
-            // 2b. 循环复制文件到目标目录
-            console.log({ type: 'info', content: `开始导出到: ${selectedDir}` });
-            for (const music of dbMusicList) {
-              if (music.file_path) {
-                try {
-                  // 构造目标文件名
-                  const sanitizedTitle = sanitizeFilename(music.title);
-                  const sanitizedArtist = sanitizeFilename(music.artist);
-                  const baseFilename = `${sanitizedTitle} - ${sanitizedArtist}.mp3`;
-
-                  // 在移动端，我们简化处理，不检查文件名冲突，直接覆盖或让用户处理
-                  const destinationPath = await join(selectedDir, baseFilename);
-
-                  // 使用 fs 插件的 copyFile
-                  await copyFile(music.file_path, destinationPath);
-                  successCount++;
-                } catch (e) {
-                  console.error(`复制文件失败: ${music.title}`, e);
-                  failCount++;
-                }
-              }
-            }
-
-            const resultMsg = `导出完成！成功 ${successCount} 首，失败 ${failCount} 首。`;
-            console.log({ type: 'success', content: resultMsg });
-            return resultMsg;
-          }
+          const resultMsg = `导出完成！成功 ${musicList.length} 首`;
+          console.log(resultMsg);
+          return resultMsg;
         } catch (error: any) {
           console.error('保存文件失败:', error);
           console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
