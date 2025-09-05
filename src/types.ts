@@ -9,6 +9,8 @@ export interface MusicDetail {
   download_extra?: string;
   download_mp3_id?: string;
   play_url?: string;
+  file_path?: string;
+  last_played_at?: string;
 }
 
 export interface Music extends MusicDetail {

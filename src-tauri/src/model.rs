@@ -16,6 +16,8 @@ pub struct Music {
     pub download_extra: Option<String>,
     pub download_mp3_id: Option<String>,
     pub play_id: Option<String>,
+    pub file_path: Option<String>,
+    pub last_played_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

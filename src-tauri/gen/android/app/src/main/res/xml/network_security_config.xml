@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  这个文件定义了应用的网络安全规则。
+-->
+<network-security-config>
+    <!--
+      我们在这里定义一个特殊的域配置，
+      允许应用向 127.0.0.1 (即 localhost) 发送未加密的 HTTP 请求。
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

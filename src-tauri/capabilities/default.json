@@ -30,6 +30,7 @@
     },
     "shell:default",
     "shell:allow-open",
-    "os:default"
+    "os:default",
+    "notification:default"
   ]
 }

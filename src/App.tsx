@@ -3,6 +3,7 @@ import { Layout, Typography, Image, Flex, Button } from 'antd';
 import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
+import SettingPage from './pages/Setting';
 import BottomNav from './components/BottomNav';
 import './App.css';
 import { useAppStore } from './store';
@@ -55,31 +56,28 @@ const App = () => {
     if (!audio) return;
 
     // --- 同步歌曲源 ---
-    if (currentMusic && currentMusic.play_url) {
-      if (audio.src !== currentMusic.play_url) {
-        audio.src = currentMusic.play_url;
-        // 当源改变时，我们期望它能自动播放
-        if (isPlaying && !audio.played) {
-          audio.play().catch(e => console.error("自动播放失败:", e));
-        }
-      } ` `
+    if (currentMusic && currentMusic.file_path) {
+      if (audio.src !== currentMusic.file_path) {
+        audio.src = currentMusic.file_path;
+      }
     } else {
-      // 如果没有歌曲或播放链接，则清空
       audio.src = "";
     }
 
     // --- 同步播放/暂停状态 ---
-    if (isPlaying) {
-      // 检查是否已暂停，避免不必要的 play() 调用
-      if (audio.paused) {
-        audio.play().catch(e => console.error("播放失败:", e));
+    setTimeout(() => {
+      if (isPlaying) {
+        // 检查是否已暂停，避免不必要的 play() 调用
+        if (audio.paused) {
+          audio.play().catch(e => console.error("播放失败:", e));
+        }
+      } else {
+        // 检查是否正在播放，避免不必要的 pause() 调用
+        if (!audio.paused) {
+          audio.pause();
+        }
       }
-    } else {
-      // 检查是否正在播放，避免不必要的 pause() 调用
-      if (!audio.paused) {
-        audio.pause();
-      }
-    }
+    }, 90)
   }, [currentMusic, isPlaying]); // 同时监听歌曲和播放状态的变化
 
   useEffect(() => {
@@ -108,25 +106,27 @@ const App = () => {
         return <PlaylistPage />;
       case 'player':
         return <PlayerPage audioRef={audioRef} />;
+      case 'setting':
+        return <SettingPage />;
       default:
         return <SearchPage />;
     }
   };
 
+
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentMusic?.play_url) {
+    if (!audio || !currentMusic?.file_path) {
       handleClose(); // 如果没有播放链接，就关闭播放器
       return;
     };
 
-    if (audio.src !== currentMusic.play_url) {
-      audio.src = currentMusic.play_url;
+    if (audio.src !== currentMusic.file_path) {
+      audio.src = currentMusic.file_path;
       if (isPlaying && !audio.played) {
         audio.play().catch(e => console.error("自动播放失败:", e));
       }
     }
-
   }, [currentMusic, handleNext]);
 
   useEffect(() => {
@@ -237,7 +237,7 @@ const App = () => {
           flex: 1, // 关键：让这个区域占据所有剩余的可用空间
           overflowY: 'auto', // 关键：只在这个区域内部启用垂直滚动
           padding: '6px',
-          paddingBottom: "76px", // 保留您的逻辑，防止内容被底部栏遮挡
+          paddingBottom: "100px", // 保留您的逻辑，防止内容被底部栏遮挡
           transition: 'padding-bottom 0.3s',
           scrollbarWidth: 'none', // 使滚动条更细
         }}
