@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Layout, Typography, Image, Flex, Button } from 'antd';
+import { useEffect, useRef } from 'react';
+import { Layout, Typography, Image, Flex } from 'antd';
 import SearchPage from './pages/Search';
 import PlaylistPage from './pages/Playlist';
 import PlayerPage from './pages/Player';
@@ -11,9 +11,6 @@ import { useAppStore } from './store';
 import { Content } from 'antd/es/layout/layout';
 import FloatPlayer from './components/FloatPlayer';
 import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
-import { UpdateInfo } from './types';
-import { invoke } from '@tauri-apps/api/core';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { checkForUpdates } from './util/updater';
 import PrivacyPage from './pages/Setting/Privacy';
