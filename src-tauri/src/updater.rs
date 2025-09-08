@@ -25,7 +25,7 @@ pub struct PackageJson {
 }
 
 /// [重构] 核心检查逻辑，现在返回一个结构体给前端
-pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
+pub async fn check_for_updates(app: &AppHandle, force:bool) -> Result<UpdateInfo, String> {
     let current_version_str = app.package_info().version.to_string();
     // [修改] 使用您提供的 Gitee raw 链接
     let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/release/package.json";
@@ -73,7 +73,7 @@ pub async fn check_for_updates(app: &AppHandle) -> Result<UpdateInfo, String> {
                 .map_err(|e| e.to_string())?
                 .unwrap_or_default(); // 如果不存在，默认为空字符串
 
-        if latest_version_str == ignored_version_str {
+        if latest_version_str == ignored_version_str && !force {
             // 版本已被忽略
             println!("最新版本 v{} 已被用户忽略。", latest_version);
             Ok(UpdateInfo {
