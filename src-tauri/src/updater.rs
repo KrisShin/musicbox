@@ -25,7 +25,7 @@ pub struct PackageJson {
 }
 
 /// [重构] 核心检查逻辑，现在返回一个结构体给前端
-pub async fn check_for_updates(app: &AppHandle, force:bool) -> Result<UpdateInfo, String> {
+pub async fn check_for_updates(app: &AppHandle, force: bool) -> Result<UpdateInfo, String> {
     let current_version_str = app.package_info().version.to_string();
     // [修改] 使用您提供的 Gitee raw 链接
     let package_json_url = "https://gitee.com/KrisShin/musicbox/raw/release/package.json";

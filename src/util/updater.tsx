@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button, Flex } from 'antd';
 import { UpdateInfo } from '../types';
+// import { platform } from '@tauri-apps/plugin-os';
 
 // 定义函数所需的 API 接口，使类型更清晰
 interface UpdaterApi {
@@ -43,7 +45,7 @@ export const checkForUpdates = async ({ force = false, messageApi, modalApi }: {
         if (result?.download_url) {
           await copy2Clipboard();
           try {
-            open(result.download_url);
+            await openUrl(result.download_url);
           } catch (err) {
             console.error("无法打开下载链接:", err);
             messageApi.error("无法打开下载链接，请手动复制。");

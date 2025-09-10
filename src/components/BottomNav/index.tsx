@@ -29,10 +29,10 @@ const BottomNav: React.FC = () => {
     const location = useLocation();
     const currentMusic = useAppStore(state => state.currentMusic);
 
-    const iconStyle = { fontSize: '24px' };
+    const iconStyle = { fontSize: '21px' };
     const navItems = [
         { icon: <SearchOutlined style={iconStyle} />, label: '发现', path: '/' },
-        { icon: <UnorderedListOutlined style={iconStyle} />, label: '列表', path: '/playlist' },
+        { icon: <UnorderedListOutlined style={iconStyle} />, label: '歌单', path: '/playlist' },
         { icon: <PlaySquareOutlined style={iconStyle} />, label: '播放', path: '/player' },
         { icon: <SettingOutlined style={iconStyle} />, label: '设置', path: '/setting' },
     ];
