@@ -1,51 +1,77 @@
+// src/components/BottomNav/index.tsx
+
 import React from 'react';
-import { Layout, Flex, Button } from 'antd';
+import { Flex } from 'antd';
 import { SearchOutlined, UnorderedListOutlined, PlaySquareOutlined, SettingOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAppStore } from '../../store';
 
-const { Footer } = Layout;
-
-interface BottomNavProps {
-    activeTab: string;
-    onTabChange: (tab: string) => void;
+interface NavItemProps {
+    icon: React.ReactNode;
+    label: string;
+    path: string;
+    isActive: boolean;
+    onClick: () => void;
 }
 
-const iconSize = '18px'
+const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
+    const color = isActive ? '#F08080' : '#888';
+    return (
+        <Flex vertical align="center" justify="center" gap={4} onClick={onClick} style={{ cursor: 'pointer', color, padding:'6px 20px' }}>
+            {icon}
+            <span style={{ fontSize: '12px', lineHeight: 1 }}>{label}</span>
+        </Flex>
+    );
+};
 
-const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
+const BottomNav: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const currentMusic = useAppStore(state => state.currentMusic);
+
+    const iconStyle = { fontSize: '21px' };
     const navItems = [
-        { key: 'search', icon: <SearchOutlined style={{ fontSize: iconSize }} />, label: '搜索' },
-        { key: 'playlist', icon: <UnorderedListOutlined style={{ fontSize: iconSize }} />, label: '歌单' },
-        { key: 'player', icon: <PlaySquareOutlined style={{ fontSize: iconSize }} />, label: '播放' },
-        { key: 'setting', icon: <SettingOutlined style={{ fontSize: iconSize }} />, label: '设置' },
+        { icon: <SearchOutlined style={iconStyle} />, label: '发现', path: '/' },
+        { icon: <UnorderedListOutlined style={iconStyle} />, label: '歌单', path: '/playlist' },
+        { icon: <PlaySquareOutlined style={iconStyle} />, label: '播放', path: '/player' },
+        { icon: <SettingOutlined style={iconStyle} />, label: '设置', path: '/setting' },
     ];
 
+    const handleNavigate = (path: string) => {
+        if (path === '/player' && !currentMusic) {
+            // 如果没有当前音乐，则不允许跳转到播放器页面
+            return;
+        }
+        navigate(path);
+    };
+
     return (
-        <Footer style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#fff5f5',
-            borderRadius: "15px 15px 0 0",
-            padding: "8px 14px 28px 14px",
-            borderTop: "5px solid #ffb5b5ff",
-            zIndex: 10,
-        }}>
-            <Flex justify="space-around">
-                {navItems.map(item => (
-                    <Button
-                        size='large'
-                        key={item.key}
-                        type={activeTab === item.key ? 'primary' : 'text'}
-                        icon={item.icon}
-                        onClick={() => onTabChange(item.key)}
-                        style={{ flexDirection: 'column', height: 'auto', padding: '6px 10px' }}
-                    >
-                        <span style={{ fontSize: '12px' }}>{item.label}</span>
-                    </Button>
-                ))}
-            </Flex>
-        </Footer>
+        <Flex
+            justify="space-around"
+            align="center"
+            style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: `calc(60px + env(safe-area-inset-bottom))`,
+                paddingBottom: `env(safe-area-inset-bottom)`,
+                backgroundColor: '#fff5f5',
+                borderTop: '1px solid #ffb5b5',
+                zIndex: 10
+            }}
+        >
+            {navItems.map(item => (
+                <NavItem
+                    key={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    path={item.path}
+                    isActive={location.pathname === item.path}
+                    onClick={() => handleNavigate(item.path)}
+                />
+            ))}
+        </Flex>
     );
 };
 

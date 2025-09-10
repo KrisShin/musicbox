@@ -1,6 +1,6 @@
 [package]
 name = "musicbox"
-version = "2.0.1"
+version = "2.0.2"
 description = "MusicBox multi-platform by Tauri"
 authors = ["Kris"]
 edition = "2024"
@@ -21,7 +21,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2.8.0", features = [ "protocol-asset", "tray-icon", "image-png"] }
 tauri-plugin-http = { version = "2", features = [ "json" ] }
 tauri-plugin-dialog = "2.4.0"
-tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 sqlx = { version = "0.8.6", features = [ "runtime-tokio-rustls", "sqlite" ] }
 serde = { version = "1", features = ["derive"] }
@@ -34,3 +33,4 @@ tauri-plugin-os = "2"
 tauri-plugin-notification = "2"
 tiny_http = "0.12.0"
 urlencoding = "2.1.3"
+tauri-plugin-opener = "2"

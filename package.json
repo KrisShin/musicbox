@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.0.1",
-  "releaseNotes": "Release 20250905 \n1. 新增了缓存通知 \n2. 新增了歌曲文件缓存 \n3. 支持了安卓端文件批量下载 \n4. 新增了设置页面 \n5. 调整了dock栏图标高度和标签显示 \n6. 修复了部分已知bug",
+  "version": "2.0.2",
+  "releaseNotes": "Release 20250910 \n今天教师节, 祝所有老师教师节快乐 \n1. 新增关于页面 \n2. 新增隐私页面 \n3. 支持手动检查更新 \n4. 修复更新从内部跳转的问题 \n5. 调整了dock栏图标高度和标签显示 \n6. 安卓支持调用外部浏览器了, 可喜可贺\n7. 修复了部分已知bug",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,14 +14,15 @@
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
     "@tauri-apps/plugin-dialog": "~2",
-    "@tauri-apps/plugin-fs": "^2.4.1",
+    "@tauri-apps/plugin-fs": "~2",
     "@tauri-apps/plugin-http": "^2.5.1",
     "@tauri-apps/plugin-notification": "~2",
+    "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2",
-    "@tauri-apps/plugin-shell": "^2.3.0",
     "antd": "^5.26.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.8.2",
     "zustand": "^5.0.7"
   },
   "devDependencies": {
