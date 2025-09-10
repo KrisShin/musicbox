@@ -105,8 +105,11 @@ async fn get_app_setting(
 }
 
 #[tauri::command]
-async fn check_for_updates(app_handle: AppHandle) -> Result<updater::UpdateInfo, String> {
-    updater::check_for_updates(&app_handle).await
+async fn check_for_updates(
+    app_handle: AppHandle,
+    force: bool,
+) -> Result<updater::UpdateInfo, String> {
+    updater::check_for_updates(&app_handle, force).await
 }
 
 // 4. [新增] 忽略指定版本的 command
@@ -148,6 +151,7 @@ pub async fn cache_music_and_get_file_path(
         .await
         .map_err(|e| e.to_string())
 }
+
 #[tauri::command]
 pub async fn export_music_file(
     app_handle: AppHandle,
