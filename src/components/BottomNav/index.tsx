@@ -17,7 +17,7 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
     const color = isActive ? '#F08080' : '#888';
     return (
-        <Flex vertical align="center" justify="center" gap={4} onClick={onClick} style={{ cursor: 'pointer', color, padding:'6px 20px' }}>
+        <Flex vertical align="center" justify="center" gap={4} onClick={onClick} style={{ cursor: 'pointer', color, padding: '6px 20px' }}>
             {icon}
             <span style={{ fontSize: '12px', lineHeight: 1 }}>{label}</span>
         </Flex>
@@ -54,11 +54,11 @@ const BottomNav: React.FC = () => {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: `calc(60px + env(safe-area-inset-bottom))`,
-                paddingBottom: `env(safe-area-inset-bottom)`,
-                backgroundColor: '#fff5f5',
-                borderTop: '1px solid #ffb5b5',
-                zIndex: 10
+                background: '#fff5f5',
+                borderRadius: "15px 15px 0 0",
+                padding: "8px 14px 28px 14px",
+                borderTop: "5px solid #ffb5b5ff",
+                zIndex: 10,
             }}
         >
             {navItems.map(item => (

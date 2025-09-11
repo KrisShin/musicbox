@@ -150,7 +150,6 @@ export const useAppStore = create<AppState>()(
       },
       handleSave: async (musicList: Music[]) => {
         try {
-          console.log({ type: 'info', content: `正在准备...` });
           const musicIds = []
           for (const music of musicList) {
             if (!music.file_path) {
@@ -167,9 +166,15 @@ export const useAppStore = create<AppState>()(
           console.log(resultMsg);
           return resultMsg;
         } catch (error: any) {
-          console.error('保存文件失败:', error);
-          console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
-          throw new Error(error)
+          // 对后端返回的特定错误码进行处理
+          if (error === 'E_NO_PATH') {
+            // 理论上这个分支不会走到，因为我们在前面已经处理了
+            console.log({ type: 'error', content: `请先在设置中指定下载目录` });
+          } else {
+            console.error('保存文件失败:', error);
+            console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
+          }
+          throw new Error(error);
         }
       },
       handleNext: () => {
