@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import { checkForUpdates } from '../../util/updater';
 
 
-
 const SettingPage: React.FC = () => {
     const iconSize = '18px';
     const settings = [
@@ -24,8 +23,6 @@ const SettingPage: React.FC = () => {
     const messageApi = useGlobalMessage();
     const modalApi = useGlobalModal();
     const navigate = useNavigate();
-
-
 
     // messageApi.info(`${item.title} 功能尚未完成, 请等待后续版本`, 1);
     const handleClearCache = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }

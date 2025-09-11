@@ -484,34 +484,53 @@ pub async fn cache_music_and_get_file_path(
 }
 
 pub async fn export_music_file(
-    app_handle: AppHandle,
+    _app_handle: AppHandle,
     pool: &DbPool,
     music_ids: Vec<String>,
 ) -> Result<String, String> {
     if music_ids.is_empty() {
         return Err("没有选择任何歌曲".to_string());
     }
-    let total = music_ids.len(); // 先保存长度，避免后续 move
+    let total = music_ids.len();
     let music_list = get_music_list_by_id(pool, music_ids.clone())
         .await?
         .ok_or("未找到任何歌曲".to_string())?;
 
-    // 1. 获取一次公共下载目录
-    let download_path = app_handle
+    // --- 核心改动：平台特定的下载路径逻辑 ---
+
+    // 在安卓平台上，我们硬编码到公共的 Download 目录
+    #[cfg(target_os = "android")]
+    use std::path::PathBuf;
+
+    #[cfg(target_os = "android")]
+    let download_path = {
+        // 1. 定义公共下载目录下的一个子目录，用于存放本应用的文件
+        let path = PathBuf::from("/storage/emulated/0/Download/MusicBox");
+
+        // 2. 异步地确保这个目录存在，如果不存在则创建
+        if !path.exists() {
+            tokio::fs::create_dir_all(&path)
+                .await
+                .map_err(|e| format!("在安卓上创建下载目录失败: {}", e))?;
+        }
+        path
+    };
+
+    // 在所有非安卓平台（Windows, macOS, Linux），保持现有逻辑
+    #[cfg(not(target_os = "android"))]
+    let download_path = _app_handle
         .path()
         .download_dir()
         .or_else(|_| Err("无法获取下载目录".to_string()))?;
 
-    // 2. [优化] 一次性从数据库查询所有需要的歌曲信息
+    // --- 后续逻辑的微小调整 ---
 
     let mut success_count = 0;
     let mut fail_count = 0;
     let mut skipped_count = 0;
 
-    // 3. 循环处理查询到的歌曲列表
     for music in music_list {
         if let Some(source_path) = music.file_path.filter(|p| !p.is_empty()) {
-            // 净化文件名
             let sanitized_title = music
                 .title
                 .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
@@ -519,12 +538,12 @@ pub async fn export_music_file(
                 .artist
                 .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
 
-            // 处理文件名冲突
             let base_filename = format!("{} - {}.mp3", sanitized_title, sanitized_artist);
             let mut final_path = download_path.join(&base_filename);
             let mut counter = 1;
 
-            while final_path.exists() {
+            // [优化] 检查文件是否存在时，使用 tokio::fs::metadata 来避免阻塞
+            while tokio::fs::metadata(&final_path).await.is_ok() {
                 let new_filename = format!(
                     "{} - {} ({}).mp3",
                     sanitized_title, sanitized_artist, counter
@@ -533,8 +552,8 @@ pub async fn export_music_file(
                 counter += 1;
             }
 
-            // 执行文件复制
-            match std::fs::copy(&source_path, &final_path) {
+            // [优化] 使用异步文件复制 tokio::fs::copy，避免阻塞线程
+            match tokio::fs::copy(&source_path, &final_path).await {
                 Ok(_) => success_count += 1,
                 Err(e) => {
                     println!("复制文件 {} 失败: {}", source_path, e);
@@ -550,12 +569,19 @@ pub async fn export_music_file(
         }
     }
 
-    // 4. 返回一个更详细的总结
     if success_count > 0 {
-        Ok(format!(
+        // 为安卓用户提供更明确的路径提示
+        #[cfg(target_os = "android")]
+        let final_message = format!(
+            "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。文件已保存至手机 Download/MusicBox 文件夹。",
+            total, success_count, fail_count, skipped_count
+        );
+        #[cfg(not(target_os = "android"))]
+        let final_message = format!(
             "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。",
             total, success_count, fail_count, skipped_count
-        ))
+        );
+        Ok(final_message)
     } else {
         Err(format!(
             "导出失败。总共 {} 首，失败 {} 首，未缓存跳过 {} 首。",
