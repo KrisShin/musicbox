@@ -17,6 +17,20 @@
       "allow": [
         {
           "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$HOME/Download/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-copy-file",
+      "allow": [
+        {
+          "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$HOME/Download/**"
         }
       ]
     },
