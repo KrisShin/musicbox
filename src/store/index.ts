@@ -158,22 +158,15 @@ export const useAppStore = create<AppState>()(
             musicIds.push(music.song_id)
           }
           console.log({ type: 'info', content: '正在获取歌曲信息...' });
-          await invoke<Music[]>('export_music_file', {
+          const resultMsg = await invoke<string>('export_music_file', {
             musicIds: musicIds,
           });
 
-          const resultMsg = `导出完成！成功 ${musicList.length} 首`;
           console.log(resultMsg);
           return resultMsg;
         } catch (error: any) {
-          // 对后端返回的特定错误码进行处理
-          if (error === 'E_NO_PATH') {
-            // 理论上这个分支不会走到，因为我们在前面已经处理了
-            console.log({ type: 'error', content: `请先在设置中指定下载目录` });
-          } else {
-            console.error('保存文件失败:', error);
-            console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
-          }
+          console.error('保存文件失败:', error);
+          console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
           throw new Error(error);
         }
       },
