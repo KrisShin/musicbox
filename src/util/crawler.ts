@@ -87,7 +87,7 @@ export const searchMusic = async (
 export const musicDetail = async (music: Music): Promise<Music> => {
   try {
     const fullDetailUrl = `${BASE_URL}${music.url}`;
-    const dbMusic = await invoke<Music[]>('get_music_list_by_id', {
+    const dbMusic = await invoke<Music[]>('get_music_list_by_ids', {
       songIds: [music.song_id],
     }).then(res => res ? res[0] : null);
 
@@ -113,7 +113,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     console.log(`(Crawler) 成功爬取并更新到数据库: ${music.title}`);
 
     console.log(`(DB) 重新获取刚更新的详情: ${music.title}`);
-    const finalMusic = await invoke<Music[]>('get_music_list_by_id', {
+    const finalMusic = await invoke<Music[]>('get_music_list_by_ids', {
       songIds: [music.song_id],
     }).then(res => res ? res[0] : null);;
 

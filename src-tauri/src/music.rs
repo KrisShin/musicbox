@@ -9,7 +9,7 @@ use crate::{
         ExistingMusicDetail, Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload,
         UpdateDetailPayload,
     },
-    my_util::{DbPool, MEDIA_ADDR},
+    my_util::{DbPool, MEDIA_ADDR, get_app_setting},
 };
 
 use super::my_util::img_url_to_b64;
@@ -331,7 +331,7 @@ pub async fn get_music_by_playlist_id(
             WHERE
                 ps.playlist_id = ?
             ORDER BY
-                ps.position ASC
+                ps.position DESC
         "#,
     )
     .bind(playlist_id)
@@ -341,7 +341,7 @@ pub async fn get_music_by_playlist_id(
     Ok(music_list)
 }
 
-pub async fn get_music_list_by_id(
+pub async fn get_music_list_by_ids(
     pool: &DbPool,
     music_ids: Vec<String>,
 ) -> Result<Option<Vec<Music>>, String> {
@@ -492,36 +492,53 @@ pub async fn export_music_file(
         return Err("没有选择任何歌曲".to_string());
     }
     let total = music_ids.len();
-    let music_list = get_music_list_by_id(pool, music_ids.clone())
+    let music_list = get_music_list_by_ids(pool, music_ids.clone())
         .await?
         .ok_or("未找到任何歌曲".to_string())?;
 
-    // --- 核心改动：平台特定的下载路径逻辑 ---
+    // 1. 获取下载子路径，提供默认值 "MusicBox"
+    let sub_path = get_app_setting(pool, "download_path".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "MusicBox".to_string());
+
+    // 2. 获取文件名格式，提供默认值 "title_artist"
+    let name_format = get_app_setting(pool, "filename_format".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "title_artist".to_string());
+
+    // 3. 获取是否移除空格的设置，默认为 "false"
+    let remove_spaces = get_app_setting(pool, "filename_remove_spaces".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
 
     // 在安卓平台上，我们硬编码到公共的 Download 目录
     #[cfg(target_os = "android")]
     use std::path::PathBuf;
 
     #[cfg(target_os = "android")]
-    let download_path = {
-        // 1. 定义公共下载目录下的一个子目录，用于存放本应用的文件
-        let path = PathBuf::from("/storage/emulated/0/Download/MusicBox");
+    let base_path = PathBuf::from("/storage/emulated/0/Download");
 
-        // 2. 异步地确保这个目录存在，如果不存在则创建
-        if !path.exists() {
-            tokio::fs::create_dir_all(&path)
-                .await
-                .map_err(|e| format!("在安卓上创建下载目录失败: {}", e))?;
-        }
-        path
-    };
-
-    // 在所有非安卓平台（Windows, macOS, Linux），保持现有逻辑
     #[cfg(not(target_os = "android"))]
-    let download_path = _app_handle
+    let base_path = _app_handle
         .path()
         .download_dir()
-        .or_else(|_| Err("无法获取下载目录".to_string()))?;
+        .or_else(|_| Err("无法获取系统的下载目录".to_string()))?;
+
+    // 2. 将基础目录与从数据库读取的子目录名拼接
+    //    同时进行安全净化，防止 ".." 等路径遍历字符
+    let download_path = base_path.join(sub_path.replace("..", ""));
+
+    // 3. 确保最终的目录存在，如果不存在则创建
+    if !download_path.exists() {
+        tokio::fs::create_dir_all(&download_path)
+            .await
+            .map_err(|e| format!("创建下载目录 '{}' 失败: {}", download_path.display(), e))?;
+    }
 
     // --- 后续逻辑的微小调整 ---
 
@@ -538,7 +555,15 @@ pub async fn export_music_file(
                 .artist
                 .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
 
-            let base_filename = format!("{} - {}.mp3", sanitized_title, sanitized_artist);
+            let mut base_filename = match name_format.as_str() {
+                "artist_title" => format!("{} - {}", sanitized_artist, sanitized_title),
+                _ => format!("{} - {}", sanitized_title, sanitized_artist), // 默认 "title_artist"
+            };
+
+            if remove_spaces {
+                base_filename = base_filename.replace(" ", "");
+            }
+            base_filename.push_str(".mp3");
             let mut final_path = download_path.join(&base_filename);
             let mut counter = 1;
 
@@ -551,6 +576,7 @@ pub async fn export_music_file(
                 final_path = download_path.join(new_filename);
                 counter += 1;
             }
+            println!("歌曲导出到 {} 。", final_path.display());
 
             // [优化] 使用异步文件复制 tokio::fs::copy，避免阻塞线程
             match tokio::fs::copy(&source_path, &final_path).await {

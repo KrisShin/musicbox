@@ -5,6 +5,15 @@ tech stack: Tauri V2 + React + Typescript
 This is a music downloader client for learning Tauri V2, And you can search/download music by this client.
 We will support multi-platform, welcome try in [Release](https://github.com/KrisShin/musicbox/releases)
 
+## Change log
+
+### Release 20250912
+
+- 1. 支持自定义下载路径(家目录Download下) 
+- 2. 支持自定义下载文件名格式 
+- 3. 修改了歌单中的歌曲顺序(新加入的在上面) 
+- 4. 修复了部分已知bug
+
 ### Release 20250911
 
 困扰了我好几周的问题, 今天终于解决, 安卓端终于完美支持批量下载了, 会统一下载到Download/MusicBox里面, 我愿称这次是史诗级更新 
@@ -15,8 +24,6 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 ## Client(Android)
 
 <img src="/assets/example.gif" width="400px" alt="Desktop client">
-
-
 
 # 🌟 Acknowledgement
 
