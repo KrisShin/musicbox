@@ -1,14 +1,16 @@
-import { Flex, List } from 'antd';
-import React from 'react';
-import { ClearOutlined, DatabaseOutlined, ExportOutlined, FileProtectOutlined, ImportOutlined, InfoCircleOutlined, SelectOutlined, SendOutlined, SettingOutlined } from '@ant-design/icons';
+import { Button, Checkbox, Flex, Form, Input, List, Modal, Radio } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { ClearOutlined, DatabaseOutlined, DownloadOutlined, ExportOutlined, FileProtectOutlined, ImportOutlined, InfoCircleOutlined, SelectOutlined, SendOutlined, SettingOutlined } from '@ant-design/icons';
 import { useGlobalMessage, useGlobalModal } from '../../components/MessageHook';
 import { useNavigate } from 'react-router-dom';
 import { checkForUpdates } from '../../util/updater';
+import { invoke } from '@tauri-apps/api/core';
 
 
 const SettingPage: React.FC = () => {
     const iconSize = '18px';
     const settings = [
+        { tag: 'downloadSetting', title: '下载设置', icon: <DownloadOutlined style={{ fontSize: iconSize }} />, desc: "下载保存的位置和文件名格式" },
         { tag: 'clearCache', title: '清除缓存', icon: <ClearOutlined style={{ fontSize: iconSize }} />, desc: "清空所有缓存的音乐文件, 会让播放加载变慢" },
         { tag: 'importLocal', title: '导入本地音乐', icon: <ImportOutlined style={{ fontSize: iconSize }} />, desc: "导入你自己的音乐文件夹" },
         { tag: 'exportDB', title: '导出播放列表', icon: <ExportOutlined style={{ fontSize: iconSize }} />, desc: "导出当前的播放列表给其他musicbox客户端用" },
@@ -23,8 +25,12 @@ const SettingPage: React.FC = () => {
     const messageApi = useGlobalMessage();
     const modalApi = useGlobalModal();
     const navigate = useNavigate();
+    const [form] = Form.useForm();
+    const [loading, setLoading] = useState(true);
+    const [downloadSettingOpen, setDownloadSettingOpen] = useState(false);
 
     // messageApi.info(`${item.title} 功能尚未完成, 请等待后续版本`, 1);
+    // 保存设置的处理函数
     const handleClearCache = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
     const handleImportLocal = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
     const handleExportDB = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
@@ -40,6 +46,7 @@ const SettingPage: React.FC = () => {
 
     const handleSetting = (tag: string) => {
         switch (tag) {
+            case 'downloadSetting': setDownloadSettingOpen(true); break;
             case 'clearCache': handleClearCache(); break;
             case 'importLocal': handleImportLocal(); break;
             case 'exportDB': handleExportDB(); break;
@@ -51,6 +58,40 @@ const SettingPage: React.FC = () => {
             case 'reset': handleReset(); break;
         }
     }
+
+    const handleSaveSettings = async (values: any) => {
+        try {
+            await invoke('save_app_setting', { key: 'download_path', value: values.downloadPath });
+            await invoke('save_app_setting', { key: 'filename_format', value: values.filenameFormat });
+            await invoke('save_app_setting', { key: 'filename_remove_spaces', value: String(values.filenameRemoveSpaces) });
+            messageApi.success('设置已保存！');
+            setDownloadSettingOpen(false);
+        } catch (error) {
+            messageApi.error('保存设置失败');
+        }
+    };
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                setLoading(true);
+                const downloadPath = await invoke('get_app_setting', { key: 'download_path' });
+                const filenameFormat = await invoke('get_app_setting', { key: 'filename_format' });
+                const filenameRemoveSpaces = await invoke('get_app_setting', { key: 'filename_remove_spaces' });
+
+                form.setFieldsValue({
+                    downloadPath: downloadPath || 'MusicBox',
+                    filenameFormat: filenameFormat || 'title_artist',
+                    filenameRemoveSpaces: filenameRemoveSpaces === 'true',
+                });
+            } catch (error) {
+                messageApi.error('加载设置失败');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSettings();
+    }, [form, messageApi]);
 
     return (
         <Flex vertical style={{ padding: '15px', marginBottom: '60px' }} gap="16px">
@@ -71,6 +112,40 @@ const SettingPage: React.FC = () => {
                     </List.Item>
                 )}
             />
+            <Modal title="下载设置" open={downloadSettingOpen} footer={null} onCancel={() => setDownloadSettingOpen(false)}>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleSaveSettings}
+                    disabled={loading}
+                >
+                    <Form.Item
+                        name="downloadPath"
+                        label="下载文件夹名称"
+                        tooltip="此文件夹将被创建在您系统的'下载'目录中 (桌面端) 或 /storage/emulated/0/Download/ (安卓端)"
+                        rules={[{ required: true, message: '请输入文件夹名称' }]}
+                    >
+                        <Input placeholder="例如: MusicBox" />
+                    </Form.Item>
+
+                    <Form.Item name="filenameFormat" label="导出文件名格式">
+                        <Radio.Group>
+                            <Radio value="title_artist">歌名 - 歌手</Radio>
+                            <Radio value="artist_title">歌手 - 歌名</Radio>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item name="filenameRemoveSpaces" valuePropName="checked">
+                        <Checkbox>移除文件名中的空格</Checkbox>
+                    </Form.Item>
+
+                    <Form.Item>
+                        <Button type="primary" htmlType="submit">
+                            保存下载设置
+                        </Button>
+                    </Form.Item>
+                </Form>
+            </Modal>
         </Flex >
     );
 };
