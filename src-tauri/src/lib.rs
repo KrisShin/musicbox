@@ -4,6 +4,8 @@ pub mod commands;
 pub mod ffi;
 pub mod model;
 pub mod music;
+pub mod playlist;
+pub mod music_cache;
 pub mod my_util;
 pub mod updater;
 

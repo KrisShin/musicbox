@@ -2579,6 +2579,7 @@ dependencies = [
  "tiny_http",
  "tokio",
  "urlencoding",
+ "walkdir",
 ]
 
 [[package]]
