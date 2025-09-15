@@ -144,10 +144,20 @@ pub fn run() {
             }
 
             tauri::async_runtime::spawn(async move {
+                // 1. 初始化数据库连接池
                 let pool = my_util::init_db_pool(&app_handle)
                     .await
                     .expect("数据库初始化失败");
-                app_handle.manage(pool);
+
+                // 2. 将连接池纳入 Tauri 的状态管理
+                app_handle.manage(pool.clone()); // 克隆一份 pool 给状态管理
+
+                // 3. 在这里触发自动清理任务
+                //    现在我们可以确信 app_handle 和 pool 都是有效的
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if let Err(e) = music_cache::run_auto_cache_cleanup(&app_handle, &pool).await {
+                    eprintln!("[Startup Cleanup] Failed: {}", e);
+                }
             });
 
             // --- 仅桌面端的 Setup 逻辑 ---

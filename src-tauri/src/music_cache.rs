@@ -4,8 +4,8 @@ use tauri::{AppHandle, Manager};
 use walkdir::WalkDir;
 
 use crate::{
-    model::{CacheAnalysisResult, CachedMusicInfo, PlaylistCacheInfo},
-    my_util::{DbPool, format_size},
+    model::{CacheAnalysisResult, CachedMusicInfo, MusicToDelete, PlaylistCacheInfo},
+    my_util::{DbPool, format_size, get_app_setting},
 };
 
 pub fn get_cache_size(app_handle: AppHandle) -> Result<String, String> {
@@ -249,4 +249,101 @@ pub async fn get_cached_music_for_playlist(
     }
 
     Ok(music_list)
+}
+
+/// [新增] 核心功能：执行自动缓存清理
+pub async fn run_auto_cache_cleanup(app_handle: &AppHandle, pool: &DbPool) -> Result<(), String> {
+    println!("[Auto Cleanup] Running startup cleanup tasks...");
+
+    // --- 任务1: 清理超过3个月未播放的缓存 (如果已启用) ---
+    let clean_old_enabled_str = get_app_setting(pool, "auto_clean_old_files_enabled".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "false".to_string());
+
+    if clean_old_enabled_str.parse::<bool>().unwrap_or(false) {
+        println!("[Auto Cleanup] Task 1: Cleaning files older than 3 months.");
+        // 直接调用我们之前已有的 `get_old_cache_info` 函数来获取需要删除的 ID 列表
+        match get_old_cache_info(pool).await {
+            Ok(info) if !info.song_ids.is_empty() => {
+                println!(
+                    "[Auto Cleanup] Found {} old files to clean.",
+                    info.song_ids.len()
+                );
+                clear_cache_by_ids(app_handle, pool, info.song_ids).await?;
+            }
+            Ok(_) => { /* 没有需要清理的旧文件 */ }
+            Err(e) => eprintln!("[Auto Cleanup] Error getting old cache info: {}", e),
+        }
+    }
+
+    // --- 任务2: 检查并清理超过大小上限的缓存 (如果已启用) ---
+    // let threshold_gb_str = get_app_setting(pool, "auto_clean_threshold_gb".to_string())
+    //     .await
+    //     .map_err(|e| e.to_string())?
+    //     .unwrap_or_else(|| "0".to_string());
+    let threshold_gb: f64 =  0.01; // threshold_gb_str.parse().unwrap_or(0.0);
+
+    if threshold_gb > 0.0 {
+        println!(
+            "[Auto Cleanup] Task 2: Checking cache size limit ({} GB).",
+            threshold_gb
+        );
+        let threshold_bytes = (threshold_gb * 1024.0 * 1024.0 * 1024.0) as u64;
+
+        let exclude_playlist_songs_str =
+            get_app_setting(pool, "auto_clean_exclude_in_playlist".to_string())
+                .await
+                .map_err(|e| e.to_string())?
+                .unwrap_or_else(|| "false".to_string());
+        let exclude_playlist_songs = exclude_playlist_songs_str.parse::<bool>().unwrap_or(false);
+
+        let sql = if exclude_playlist_songs {
+            r#"SELECT song_id, file_path FROM music WHERE file_path IS NOT NULL AND file_path != '' AND song_id NOT IN (SELECT DISTINCT song_id FROM playlist_music) ORDER BY last_played_at ASC"#
+        } else {
+            r#"SELECT song_id, file_path FROM music WHERE file_path IS NOT NULL AND file_path != '' ORDER BY last_played_at ASC"#
+        };
+
+        let songs_to_check: Vec<(String, String)> = sqlx::query_as(sql)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        let mut current_size =
+            calculate_total_size(songs_to_check.into_iter().map(|(_, path)| path).collect());
+
+        if current_size > threshold_bytes {
+            println!(
+                "[Auto Cleanup] Cache size {} exceeds threshold {}. Starting cleanup.",
+                format_size(current_size),
+                format_size(threshold_bytes)
+            );
+
+            let mut songs_to_delete_ids: Vec<String> = Vec::new();
+            let deletable_songs: Vec<MusicToDelete> = sqlx::query_as(sql)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            for song in deletable_songs {
+                if current_size <= threshold_bytes {
+                    break;
+                }
+                if let Ok(metadata) = std::fs::metadata(&song.file_path) {
+                    current_size -= metadata.len();
+                    songs_to_delete_ids.push(song.song_id);
+                }
+            }
+
+            if !songs_to_delete_ids.is_empty() {
+                println!(
+                    "[Auto Cleanup] Clearing {} songs to meet size limit.",
+                    songs_to_delete_ids.len()
+                );
+                clear_cache_by_ids(app_handle, pool, songs_to_delete_ids).await?;
+            }
+        }
+    }
+
+    println!("[Auto Cleanup] All startup tasks finished.");
+    Ok(())
 }

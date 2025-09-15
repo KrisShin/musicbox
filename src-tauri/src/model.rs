@@ -109,3 +109,9 @@ pub struct CachedMusicInfo {
     #[serde(default)]
     pub file_size_bytes: u64,
 }
+
+#[derive(sqlx::FromRow)]
+pub struct MusicToDelete {
+    pub song_id: String,
+    pub file_path: String,
+}

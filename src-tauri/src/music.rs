@@ -6,8 +6,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_http::reqwest;
 
 use crate::{
-    model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload},
-    my_util::{DbPool, MEDIA_ADDR, get_app_setting},
+    model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload}, my_util::{get_app_setting, DbPool, MEDIA_ADDR}
 };
 
 use super::my_util::img_url_to_b64;
