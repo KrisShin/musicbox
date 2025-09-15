@@ -7,6 +7,14 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 
 ## Change log
 
+### Release 20250915
+- 1. 支持手动管理缓存文件(歌单外/长时间未播放/全部清空)
+- 2. 支持按歌单手动清理缓存文件(支持多选/搜索)
+- 3. 歌单支持搜索歌曲
+- 4. 歌单支持修改封面
+- 5. 歌单修复默认封面
+- 6. 修复了部分已知bug
+
 ### Release 20250912
 
 - 1. 支持自定义下载路径(家目录Download下) 

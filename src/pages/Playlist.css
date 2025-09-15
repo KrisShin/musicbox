@@ -1,20 +1,3 @@
-.playlist-page-container {
-  /* height: 100%; */
-  width: 100%;
-  background-color: #fff;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  /* 确保整体是垂直布局 */
-}
-
-/* --- 头部 --- */
-.playlist-header {
-  padding: 24px;
-  flex-shrink: 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
 .header-info-section {
   width: 100%;
   flex-direction: row !important;
@@ -58,7 +41,7 @@
 /* 当屏幕宽度小于 576px 时 (典型手机宽度) */
 @media (max-width: 576px) {
   .playlist-header {
-    padding: 16px;
+    padding: 10px;
   }
 
   .header-info-section {
@@ -72,5 +55,58 @@
 
   .header-actions {
     justify-content: center;
+    width: 100%;
   }
+}
+
+/* src/pages/Playlist.css */
+
+/* 让主容器占满可用高度并使用 Flex 布局 */
+.playlist-page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 固定的头部区域 */
+.playlist-header-sticky {
+  /* flex-shrink: 0 确保头部不会在空间不足时被压缩 */
+  flex-shrink: 0;
+  padding: 10px;
+  background-color: #fff;
+  /* 或者你的页面背景色 */
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* 可滚动的内容区域 */
+.song-list-scrollable {
+  /* flex-grow: 1 让这个区域占据所有剩余空间 */
+  flex-grow: 1;
+  /* overflow-y: auto 使其在内容溢出时出现垂直滚动条 */
+  overflow-y: auto;
+}
+
+/* 表格行的样式，增加点击手势 */
+.song-table-row {
+  cursor: pointer;
+}
+
+/* 封面选择网格中的图片样式 */
+.cover-selector-item {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.cover-selector-item:hover {
+  border-color: #1677ff;
+  /* antd 主题蓝 */
+}
+
+/* 封面被选中时的样式 */
+.cover-selector-item.selected {
+  border-color: #ff4d4f;
+  /* antd 主题红 */
+  box-shadow: 0 0 5px rgba(255, 77, 79, 0.5);
 }

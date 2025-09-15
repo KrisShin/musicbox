@@ -3,7 +3,8 @@
 use super::my_util;
 use crate::{
     model::{
-        CacheAnalysisResult, CachedMusicInfo, Music, PlaylistCacheInfo, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload
+        CacheAnalysisResult, CachedMusicInfo, Music, PlaylistCacheInfo, PlaylistInfo,
+        PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
     },
     music::{self},
     music_cache,
@@ -220,6 +221,17 @@ pub async fn get_cached_music_for_playlist(
     music_cache::get_cached_music_for_playlist(pool.inner(), playlist_id).await
 }
 
+#[tauri::command]
+pub async fn update_playlist_cover(
+    playlist_id: i64,
+    cover_path: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    playlist::update_playlist_cover(state.inner(), playlist_id, cover_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
         save_music,
@@ -245,5 +257,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         get_all_playlists_cache_info,
         clear_cache_by_ids,
         get_cached_music_for_playlist,
+        update_playlist_cover,
     ]
 }

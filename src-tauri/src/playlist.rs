@@ -1,4 +1,7 @@
-use crate::{model::{PlaylistInfo, PlaylistMusic}, my_util::DbPool};
+use crate::{
+    model::{PlaylistInfo, PlaylistMusic},
+    my_util::DbPool,
+};
 
 pub async fn create_playlist(pool: &DbPool, name: String) -> Result<i64, sqlx::Error> {
     let result = sqlx::query("INSERT INTO playlist (name) VALUES (?)")
@@ -88,4 +91,19 @@ pub async fn get_music_by_playlist_id(
     .await?;
 
     Ok(music_list)
+}
+
+/// [新增] 更新一个歌单的封面图片路径
+pub async fn update_playlist_cover(
+    pool: &DbPool,
+    playlist_id: i64,
+    cover_path: String,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE playlist SET cover_path = ? WHERE id = ?")
+        .bind(cover_path)
+        .bind(playlist_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
