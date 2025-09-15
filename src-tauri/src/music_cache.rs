@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager};
 use walkdir::WalkDir;
 
 use crate::{
-    model::{CacheAnalysisResult, PlaylistCacheInfo},
+    model::{CacheAnalysisResult, CachedMusicInfo, PlaylistCacheInfo},
     my_util::{DbPool, format_size},
 };
 
@@ -211,4 +211,42 @@ pub async fn clear_cache_by_ids(
     }
 
     Ok(())
+}
+
+pub async fn get_cached_music_for_playlist(
+    pool: &DbPool,
+    playlist_id: i64, // 接收一个 playlist_id
+) -> Result<Vec<CachedMusicInfo>, String> {
+    let mut music_list: Vec<CachedMusicInfo> = sqlx::query_as(
+        r#"
+            SELECT
+                m.song_id,
+                m.title,
+                m.artist,
+                m.cover_url,
+                m.file_path,
+                m.last_played_at
+            FROM
+                music m
+            JOIN
+                playlist_music pm ON m.song_id = pm.song_id
+            WHERE
+                pm.playlist_id = ? -- 按指定的 playlist_id 筛选
+            ORDER BY
+                pm.position ASC
+        "#,
+    )
+    .bind(playlist_id) // 绑定 ID
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // 在 Rust 中计算文件大小的逻辑保持不变
+    for music in music_list.iter_mut() {
+        if let Ok(metadata) = std::fs::metadata(&music.file_path) {
+            music.file_size_bytes = metadata.len();
+        }
+    }
+
+    Ok(music_list)
 }

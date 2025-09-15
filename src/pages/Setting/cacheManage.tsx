@@ -108,7 +108,7 @@ const CacheManagePage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <Flex vertical style={{ marginBottom: '60px' }} gap="16px">
+      <Flex vertical gap="16px">
         <Card
           title={
             <Flex align="center">
@@ -186,12 +186,16 @@ const CacheManagePage: React.FC = () => {
           </List>
         </Card>
 
-        <Card title="歌单管理" extra={<InfoCircleOutlined title="暂未实现，敬请期待" />}>
+        <Card title="歌单管理">
           <List
             itemLayout="horizontal"
             dataSource={playlistsInfo}
             renderItem={(item) => (
-              <List.Item>
+              // [修改] 让整个列表项可点击
+              <List.Item
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/setting/cache/playlist/${item.id}`, { state: { playlistName: item.name } })}
+              >
                 <List.Item.Meta
                   avatar={<img width={48} alt="cover" src={item.cover_path || '/icon.png'} />}
                   title={item.name}

@@ -16,6 +16,7 @@ import { checkForUpdates } from './util/updater';
 import PrivacyPage from './pages/Setting/Privacy';
 import CacheManagePage from './pages/Setting/cacheManage';
 import { invoke } from '@tauri-apps/api/core';
+import PlaylistCacheManagePage from './pages/Setting/PlaylistCacheManage';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -148,6 +149,7 @@ const AppContent = () => {
           <Route path="/setting/about" element={<AboutPage />} />
           <Route path="/setting/privacy" element={<PrivacyPage />} />
           <Route path="/setting/cache" element={<CacheManagePage />} />
+          <Route path="/setting/cache/playlist/:playlistId" element={<PlaylistCacheManagePage />} />
         </Routes>
       </Content>
 

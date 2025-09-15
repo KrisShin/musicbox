@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use chrono::Utc;
+use chrono::{SecondsFormat, Utc};
 use sqlx::QueryBuilder;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_http::reqwest;
@@ -285,10 +285,7 @@ pub async fn update_music_cache_path(
 
 pub async fn update_music_last_play_time(pool: &DbPool, song_id: &str) -> Result<(), sqlx::Error> {
     // 1. 获取当前的 UTC 时间
-    let now = Utc::now();
-
-    // 2. 将时间格式化为 SQLite 兼容的字符串格式 (YYYY-MM-DD HH:MM:SS)
-    let formatted_now = now.format("%Y-%m-%d %H:%M:%S").to_string();
+    let formatted_now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
 
     // 3. 执行 SQL 更新，并按正确的顺序绑定参数
     sqlx::query("UPDATE music SET last_played_at = ?1 WHERE song_id = ?2")
