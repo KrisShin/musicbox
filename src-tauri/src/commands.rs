@@ -2,7 +2,10 @@
 
 use super::my_util;
 use crate::{
-    model::{Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload},
+    model::{
+        CacheAnalysisResult, Music, PlaylistCacheInfo, PlaylistInfo, PlaylistMusic,
+        ToggleMusicPayload, UpdateDetailPayload,
+    },
     music::{self},
     music_cache,
     my_util::DbPool,
@@ -142,6 +145,15 @@ pub async fn update_music_cache_path(
         .await
         .map_err(|e| e.to_string())
 }
+#[tauri::command]
+pub async fn update_music_last_play_time(
+    song_id: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    music::update_music_last_play_time(state.inner(), &song_id)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn cache_music_and_get_file_path(
@@ -170,6 +182,37 @@ pub fn get_cache_size(app_handle: AppHandle) -> Result<String, String> {
     music_cache::get_cache_size(app_handle)
 }
 
+#[tauri::command]
+pub async fn get_non_playlist_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<CacheAnalysisResult, String> {
+    music_cache::get_non_playlist_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn get_old_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<CacheAnalysisResult, String> {
+    music_cache::get_old_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn get_all_playlists_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<Vec<PlaylistCacheInfo>, String> {
+    music_cache::get_all_playlists_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn clear_cache_by_ids(
+    app_handle: AppHandle, // [修改] 注入 AppHandle
+    song_ids: Vec<String>,
+    pool: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    // [修改] 将 app_handle 传递给核心函数
+    music_cache::clear_cache_by_ids(&app_handle, pool.inner(), song_ids).await
+}
+
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
         save_music,
@@ -186,8 +229,13 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         ignore_update,
         get_music_list_by_ids,
         update_music_cache_path,
+        update_music_last_play_time,
         cache_music_and_get_file_path,
         export_music_file,
         get_cache_size,
+        get_non_playlist_cache_info,
+        get_old_cache_info,
+        get_all_playlists_cache_info,
+        clear_cache_by_ids,
     ]
 }

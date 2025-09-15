@@ -14,6 +14,8 @@ import { useGlobalMessage, useGlobalModal } from './components/MessageHook';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { checkForUpdates } from './util/updater';
 import PrivacyPage from './pages/Setting/Privacy';
+import CacheManagePage from './pages/Setting/cacheManage';
+import { invoke } from '@tauri-apps/api/core';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -69,6 +71,8 @@ const AppContent = () => {
       if (isPlaying) {
         // 检查是否已暂停，避免不必要的 play() 调用
         if (audio.paused) {
+          if (!currentMusic?.file_path) return; // 如果没有播放链接，就不尝试播放
+          invoke("update_music_last_play_time", { songId: currentMusic.song_id }).catch(console.error);
           audio.play().catch(e => console.error("播放失败:", e));
         }
       } else {
@@ -108,6 +112,7 @@ const AppContent = () => {
     if (audio.src !== currentMusic.file_path) {
       audio.src = currentMusic.file_path;
       if (isPlaying && !audio.played) {
+        invoke("update_music_last_play_time", { songId: currentMusic.song_id }).catch(console.error);
         audio.play().catch(e => console.error("自动播放失败:", e));
       }
     }
@@ -142,6 +147,7 @@ const AppContent = () => {
           <Route path="/setting" element={<SettingPage />} />
           <Route path="/setting/about" element={<AboutPage />} />
           <Route path="/setting/privacy" element={<PrivacyPage />} />
+          <Route path="/setting/cache" element={<CacheManagePage />} />
         </Routes>
       </Content>
 

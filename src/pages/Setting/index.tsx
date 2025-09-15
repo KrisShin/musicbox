@@ -5,6 +5,7 @@ import { useGlobalMessage, useGlobalModal } from '../../components/MessageHook';
 import { useNavigate } from 'react-router-dom';
 import { checkForUpdates } from '../../util/updater';
 import { invoke } from '@tauri-apps/api/core';
+import { primaryThemeColor } from '../../main';
 
 
 const SettingPage: React.FC = () => {
@@ -19,21 +20,21 @@ const SettingPage: React.FC = () => {
     const [cacheSize, setCacheSize] = useState("计算中...");
 
     const settings = [
-        { tag: 'downloadSetting', title: '下载设置', icon: <DownloadOutlined style={{ fontSize: iconSize }} />, desc: "下载保存的位置和文件名格式" },
-        { tag: 'manageCache', title: '清除缓存', icon: <ClearOutlined style={{ fontSize: iconSize }} />, desc: `管理缓存的音乐文件`, extra: cacheSize },
-        { tag: 'importLocal', title: '导入本地音乐', icon: <ImportOutlined style={{ fontSize: iconSize }} />, desc: "导入你自己的音乐文件夹" },
-        { tag: 'exportDB', title: '导出播放列表', icon: <ExportOutlined style={{ fontSize: iconSize }} />, desc: "导出当前的播放列表给其他musicbox客户端用" },
-        { tag: 'importDB', title: '导入播放列表', icon: <SelectOutlined style={{ fontSize: iconSize }} />, desc: "导入来自其他musicbox客户端的播放列表" },
-        { tag: 'updater', title: '检查更新', icon: <SettingOutlined style={{ fontSize: iconSize }} />, desc: "手动检查是否有更新发布" },
-        { tag: 'feedback', title: '反馈与支持', icon: <SendOutlined style={{ fontSize: iconSize }} />, desc: "反馈意见或建议给Kris" },
-        { tag: 'privacy', title: '隐私政策', icon: <FileProtectOutlined style={{ fontSize: iconSize }} />, desc: "我们非常尊重您的隐私" },
-        { tag: 'about', title: '关于 MusicBox', icon: <InfoCircleOutlined style={{ fontSize: iconSize }} />, desc: "关于MusicBox的一些信息" },
+        { tag: 'downloadSetting', title: '下载设置', icon: <DownloadOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />, desc: "下载保存的位置和文件名格式" },
+        { tag: 'manageCache', title: '管理缓存', icon: <ClearOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />, desc: `管理缓存的音乐文件`, extra: cacheSize },
+        { tag: 'importLocal', title: '导入本地音乐', icon: <ImportOutlined style={{ fontSize: iconSize, color: '' }} />, desc: "导入你自己的音乐文件夹" },
+        { tag: 'exportDB', title: '导出播放列表', icon: <ExportOutlined style={{ fontSize: iconSize, color: '' }} />, desc: "导出播放列表给其他MusicBox客户端" },
+        { tag: 'importDB', title: '导入播放列表', icon: <SelectOutlined style={{ fontSize: iconSize, color: '' }} />, desc: "导入来自其他MusicBox客户端的播放列表" },
+        { tag: 'updater', title: '检查更新', icon: <SettingOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />, desc: "手动检查是否有更新发布" },
+        { tag: 'feedback', title: '反馈与支持', icon: <SendOutlined style={{ fontSize: iconSize, color: '' }} />, desc: "反馈意见或建议给开发者" },
+        { tag: 'privacy', title: '隐私政策', icon: <FileProtectOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />, desc: "我们非常尊重您的隐私" },
+        { tag: 'about', title: '关于 MusicBox', icon: <InfoCircleOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />, desc: "关于MusicBox的一些信息" },
         { tag: 'reset', title: '重置App', icon: <DatabaseOutlined style={{ fontSize: iconSize, color: 'red' }} />, desc: "如果你遇到了无法解决的问题, 这会重置您的全部数据" },
     ]
 
     // messageApi.info(`${item.title} 功能尚未完成, 请等待后续版本`, 1);
     // 保存设置的处理函数
-    const handleClearCache = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
+    const handleManageCache = () => navigate('/setting/cache')
     const handleImportLocal = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
     const handleExportDB = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
     const handleImportDB = () => { messageApi.info(`功能尚未完成, 请等待后续版本`, 1); }
@@ -49,7 +50,7 @@ const SettingPage: React.FC = () => {
     const handleSetting = (tag: string) => {
         switch (tag) {
             case 'downloadSetting': setDownloadSettingOpen(true); break;
-            case 'clearCache': handleClearCache(); break;
+            case 'manageCache': handleManageCache(); break;
             case 'importLocal': handleImportLocal(); break;
             case 'exportDB': handleExportDB(); break;
             case 'importDB': handleImportDB(); break;

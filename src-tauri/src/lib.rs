@@ -4,9 +4,9 @@ pub mod commands;
 pub mod ffi;
 pub mod model;
 pub mod music;
-pub mod playlist;
 pub mod music_cache;
 pub mod my_util;
+pub mod playlist;
 pub mod updater;
 
 use std::{
@@ -123,13 +123,12 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
 
     builder = builder
-        .plugin(tauri_plugin_persisted_scope::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             // --- 通用 Setup 逻辑 ---

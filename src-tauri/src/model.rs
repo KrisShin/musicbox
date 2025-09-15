@@ -73,3 +73,23 @@ pub struct PlaylistMusic {
     pub position: i64,
     pub added_to_list_at: String,
 }
+
+// [新增] 为缓存分析接口定义返回的数据结构
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CacheAnalysisResult {
+    pub total_size_str: String,
+    pub song_ids: Vec<String>,
+    pub count: usize,
+}
+
+// [新增] 为播放列表缓存信息定义返回的数据结构
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct PlaylistCacheInfo {
+    pub id: i64,
+    pub name: String,
+    pub cover_path: Option<String>,
+    pub cached_song_count: i64,
+    #[sqlx(skip)]
+    #[serde(default)] // 这个字段将在 Rust 中计算
+    pub cached_size_str: String,
+}
