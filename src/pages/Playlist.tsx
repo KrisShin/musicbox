@@ -24,6 +24,7 @@ import { useAppStore } from "../store";
 import type { PlaylistInfo, Music, PlaylistMusic } from "../types";
 import "./Playlist.css"; // 我们将为它创建专属的 CSS
 import { useGlobalMessage } from "../components/MessageHook";
+import { buildCoverUrl } from "../util";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -43,7 +44,7 @@ const PlaylistPage: React.FC = () => {
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
   const [loadingMusic, setLoadingMusic] = useState(false);
   const [isSelectorVisible, setIsSelectorVisible] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
 
   const [isCoverModalVisible, setIsCoverModalVisible] = useState(false);
   const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
@@ -54,11 +55,22 @@ const PlaylistPage: React.FC = () => {
     if (!searchText) {
       return selectedPlaylistMusic;
     }
-    return selectedPlaylistMusic.filter(item =>
-      item.music.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.music.artist.toLowerCase().includes(searchText.toLowerCase())
+    return selectedPlaylistMusic.filter(
+      (item) =>
+        item.music.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.music.artist.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [selectedPlaylistMusic, searchText]);
+
+  const uniqueCoverUrls = useMemo(() => {
+    // 1. 提取所有 cover_url
+    const allCovers = selectedPlaylistMusic
+      .map((item) => item.music.cover_url)
+      .filter(Boolean) as string[]; // 过滤掉 null/undefined
+
+    // 2. 使用 Set 自动去重，然后转回数组
+    return Array.from(new Set(allCovers));
+  }, [selectedPlaylistMusic]);
 
   // --- 数据获取 ---
 
@@ -78,24 +90,36 @@ const PlaylistPage: React.FC = () => {
     }
   };
 
-  const columns: TableProps<PlaylistMusic>['columns'] = [
+  const columns: TableProps<PlaylistMusic>["columns"] = [
     {
-      title: '#',
-      key: 'index',
+      title: "#",
+      key: "index",
       width: 50,
-      align: 'center',
-      render: (_text, _record, index) => <Text type="secondary">{index + 1}</Text>,
+      align: "center",
+      render: (_text, _record, index) => (
+        <Text type="secondary">{index + 1}</Text>
+      ),
     },
     {
-      title: '歌曲',
-      dataIndex: ['music', 'title'],
-      key: 'title',
+      title: "歌曲",
+      dataIndex: ["music", "title"],
+      key: "title",
       render: (text, record) => (
         <Flex>
-          <Avatar shape="square" size={40} src={record.music.cover_url||'/icon.png'} />
-          <Flex vertical justify='center' style={{ marginLeft: 10 }}>
-            <Text style={{ maxWidth: 150 }} ellipsis={{ tooltip: text }}>{text}</Text>
-            <Text type="secondary" style={{ maxWidth: 150 }} ellipsis={{ tooltip: record.music.artist }}>
+          <Avatar
+            shape="square"
+            size={40}
+            src={buildCoverUrl(record.music.cover_url)}
+          />
+          <Flex vertical justify="center" style={{ marginLeft: 10 }}>
+            <Text style={{ maxWidth: 150 }} ellipsis={{ tooltip: text }}>
+              {text}
+            </Text>
+            <Text
+              type="secondary"
+              style={{ maxWidth: 150 }}
+              ellipsis={{ tooltip: record.music.artist }}
+            >
               {record.music.artist}
             </Text>
           </Flex>
@@ -103,10 +127,10 @@ const PlaylistPage: React.FC = () => {
       ),
     },
     {
-      title: '操作',
-      key: 'action',
+      title: "操作",
+      key: "action",
       width: 100,
-      align: 'center',
+      align: "center",
       render: (_text, record) => (
         <Flex gap="small">
           <Button
@@ -136,11 +160,11 @@ const PlaylistPage: React.FC = () => {
     if (!selectedPlaylistId || !selectedCoverUrl) return;
 
     try {
-      await invoke('update_playlist_cover', {
+      await invoke("update_playlist_cover", {
         playlistId: selectedPlaylistId,
         coverPath: selectedCoverUrl,
       });
-      messageApi.success('封面已更新！');
+      messageApi.success("封面已更新！");
       setIsCoverModalVisible(false);
       setSelectedCoverUrl(null);
       refreshData(); // 重新拉取数据以显示新封面
@@ -149,7 +173,7 @@ const PlaylistPage: React.FC = () => {
     }
   };
   const refreshData = () => {
-    fetchPlaylists();  // 刷新左侧所有歌单列表（确保封面更新）
+    fetchPlaylists(); // 刷新左侧所有歌单列表（确保封面更新）
     fetchPlaylistMusic(); // 刷新当前歌单的歌曲列表
   };
   // 1. 组件加载时，获取所有歌单
@@ -249,7 +273,8 @@ const PlaylistPage: React.FC = () => {
     const startIndex =
       mode === "shuffle" ? Math.floor(Math.random() * musicQueue.length) : 0;
     messageApi.success(
-      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${selectedPlaylist?.name || "歌单"
+      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${
+        selectedPlaylist?.name || "歌单"
       }, 即将播放 ${musicQueue[startIndex].title}`
     );
     startPlayback(musicQueue, startIndex).catch((error) =>
@@ -289,13 +314,13 @@ const PlaylistPage: React.FC = () => {
               {/* ... 封面和信息部分不变 ... */}
               <Flex gap="large" className="header-info-section">
                 <Image
-                  src={selectedPlaylist?.cover_path || "/icon.png"}
+                  src={buildCoverUrl(selectedPlaylist?.cover_path)}
                   width={110}
                   height={110}
                   className="header-cover-img"
                   preview={false} // 关闭默认预览
                   onClick={() => setIsCoverModalVisible(true)} // 点击打开模态框
-                  style={{ cursor: 'pointer' }} // 添加手势提示
+                  style={{ cursor: "pointer" }} // 添加手势提示
                 />
                 <Flex vertical justify="space-between" style={{ flex: 1 }}>
                   <div>
@@ -339,13 +364,19 @@ const PlaylistPage: React.FC = () => {
                   icon={<DownloadOutlined />}
                   type="primary"
                   onClick={() => {
-                    messageApi.info(`正在下载 ${selectedPlaylistMusic.length} 首歌曲...`, 10);
-                    handleSave(selectedPlaylistMusic.map(s => s.music)).then(() => {
-                      messageApi.destroy();
-                      messageApi.success(`全部歌曲下载完成`);
-                      fetchPlaylistMusic();
-                    })
-                  }}>
+                    messageApi.info(
+                      `正在下载 ${selectedPlaylistMusic.length} 首歌曲...`,
+                      10
+                    );
+                    handleSave(selectedPlaylistMusic.map((s) => s.music)).then(
+                      () => {
+                        messageApi.destroy();
+                        messageApi.success(`全部歌曲下载完成`);
+                        fetchPlaylistMusic();
+                      }
+                    );
+                  }}
+                >
                   下载全部
                 </Button>
               </Flex>
@@ -354,7 +385,7 @@ const PlaylistPage: React.FC = () => {
                 placeholder="在歌单中搜索..."
                 allowClear
                 onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
               />
             </Flex>
           </div>
@@ -424,10 +455,13 @@ const PlaylistPage: React.FC = () => {
           setSelectedCoverUrl(null); // 关闭时清空选择
         }}
         footer={[
-          <Button key="back" onClick={() => {
-            setIsCoverModalVisible(false);
-            setSelectedCoverUrl(null);
-          }}>
+          <Button
+            key="back"
+            onClick={() => {
+              setIsCoverModalVisible(false);
+              setSelectedCoverUrl(null);
+            }}
+          >
             取消
           </Button>,
           <Button
@@ -441,17 +475,19 @@ const PlaylistPage: React.FC = () => {
         ]}
         width={600}
       >
-        <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '10px' }}>
+        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
           <List
             grid={{ gutter: 16, xs: 3, sm: 4, md: 5, lg: 6 }}
-            dataSource={selectedPlaylistMusic.filter(item => item.music.cover_url)} // 过滤掉没有封面的歌曲
-            renderItem={item => (
+            dataSource={uniqueCoverUrls} // 过滤掉没有封面的歌曲
+            renderItem={(item) => (
               <List.Item>
                 <Image
-                  src={item.music.cover_url}
+                  src={buildCoverUrl(item)}
                   preview={false}
-                  className={`cover-selector-item ${selectedCoverUrl === item.music.cover_url ? 'selected' : ''}`}
-                  onClick={() => setSelectedCoverUrl(item.music.cover_url!)}
+                  className={`cover-selector-item ${
+                    selectedCoverUrl === item ? "selected" : ""
+                  }`}
+                  onClick={() => setSelectedCoverUrl(item!)}
                 />
               </List.Item>
             )}

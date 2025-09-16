@@ -25,8 +25,10 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconEvent},
 };
 
-// [核心改动] 升级本地媒体服务器以支持 Range Requests
-fn start_media_server(cache_path: PathBuf) {
+fn start_media_server(base_data_path: PathBuf) {
+    // 克隆路径以便在线程中使用
+    let base_path = base_data_path.clone();
+
     std::thread::spawn(move || {
         let server_addr = MEDIA_ADDR;
         let server = match tiny_http::Server::http(server_addr) {
@@ -39,7 +41,7 @@ fn start_media_server(cache_path: PathBuf) {
         println!("本地媒体服务器已在 http://{} 启动", server_addr);
 
         for request in server.incoming_requests() {
-            let requested_file = match request.url().split('?').next() {
+            let requested_url_path = match request.url().split('?').next() {
                 Some(path) => path.trim_start_matches('/'),
                 None => {
                     let _ = request.respond(tiny_http::Response::empty(404));
@@ -47,29 +49,46 @@ fn start_media_server(cache_path: PathBuf) {
                 }
             };
 
-            let decoded_file = match urlencoding::decode(requested_file) {
-                Ok(decoded) => decoded,
+            let decoded_path_str = match urlencoding::decode(requested_url_path) {
+                Ok(decoded) => decoded.into_owned(),
                 Err(_) => {
-                    let _ = request.respond(tiny_http::Response::empty(400));
+                    let _ = request.respond(tiny_http::Response::empty(400)); // Bad Request
                     continue;
                 }
             };
 
-            let file_path = cache_path.join(decoded_file.as_ref());
+            // [核心修改 2] 安全和路由检查
+            // 1. 安全检查：防止目录遍历攻击 (e.g., "music_cache/../../database.db")
+            if decoded_path_str.contains("..") {
+                let _ = request.respond(tiny_http::Response::empty(400)); // Bad Request
+                continue;
+            }
 
+            // 2. 路由检查：确保请求的是我们允许的两个缓存目录之一
+            let file_path: PathBuf;
+            if decoded_path_str.starts_with("music_cache/")
+                || decoded_path_str.starts_with("cover_cache/")
+            {
+                // 如果路径合法，则拼接基础路径
+                file_path = base_path.join(&decoded_path_str);
+            } else {
+                // 否则，禁止访问
+                eprintln!("Forbidden access attempt: {}", decoded_path_str);
+                let _ = request.respond(tiny_http::Response::empty(403)); // Forbidden
+                continue;
+            }
+
+            // 后续的文件服务逻辑 (Range Request等) 保持不变
             if let Ok(mut file) = File::open(&file_path) {
                 let total_size = file.metadata().map(|m| m.len()).unwrap_or(0);
-                // [修复] 创建一个可复用的 header
                 let accept_ranges_header =
                     tiny_http::Header::from_bytes(&b"Accept-Ranges"[..], &b"bytes"[..]).unwrap();
 
-                // 检查是否有 Range 请求头
                 if let Some(range_header) =
                     request.headers().iter().find(|h| h.field.equiv("Range"))
                 {
                     let range_str = range_header.value.as_str();
                     if let Some(range) = parse_range(range_str, total_size) {
-                        // 如果是范围请求
                         let (start, end) = range;
                         let len = end - start + 1;
 
@@ -97,16 +116,14 @@ fn start_media_server(cache_path: PathBuf) {
                                 .with_header(accept_ranges_header);
                             let _ = request.respond(response);
                         } else {
-                            let _ = request.respond(tiny_http::Response::empty(500)); // Internal Server Error
+                            let _ = request.respond(tiny_http::Response::empty(500));
                         }
                     } else {
-                        // Range 请求头格式不正确，返回整个文件
                         let response =
                             tiny_http::Response::from_file(file).with_header(accept_ranges_header);
                         let _ = request.respond(response);
                     }
                 } else {
-                    // 如果没有 Range 请求头，返回整个文件
                     let response =
                         tiny_http::Response::from_file(file).with_header(accept_ranges_header);
                     let _ = request.respond(response);
@@ -136,11 +153,22 @@ pub fn run() {
             let app_handle = app.handle().clone();
 
             if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
-                let cache_dir = app_data_dir.join("music_cache");
-                if !cache_dir.exists() {
-                    std::fs::create_dir_all(&cache_dir).expect("创建缓存目录失败");
+                // 1. 确保 music_cache 存在
+                let music_cache_dir = app_data_dir.join("music_cache");
+                if !music_cache_dir.exists() {
+                    std::fs::create_dir_all(&music_cache_dir).expect("创建 music_cache 目录失败");
                 }
-                start_media_server(cache_dir);
+
+                // 2. [新增] 确保 cover_cache 存在
+                let cover_cache_dir = app_data_dir.join("cover_cache");
+                if !cover_cache_dir.exists() {
+                    std::fs::create_dir_all(&cover_cache_dir).expect("创建 cover_cache 目录失败");
+                }
+
+                // 3. 将父目录 (app_data_dir) 传递给服务器，使其可以访问其下的所有子目录
+                start_media_server(app_data_dir);
+            } else {
+                eprintln!("严重错误：无法获取 app_data_dir！");
             }
 
             tauri::async_runtime::spawn(async move {

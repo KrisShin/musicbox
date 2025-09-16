@@ -25,10 +25,11 @@ async fn save_music(music_list: Vec<Music>, state: tauri::State<'_, DbPool>) -> 
 
 #[tauri::command]
 async fn update_music_detail(
+    app_handle: AppHandle,
     payload: UpdateDetailPayload,
     state: tauri::State<'_, DbPool>,
 ) -> Result<(), String> {
-    music::update_music_detail(state.inner(), payload)
+    music::update_music_detail(&app_handle, state.inner(), payload)
         .await
         .map_err(|e| e.to_string())
 }

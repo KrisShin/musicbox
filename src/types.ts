@@ -50,3 +50,13 @@ export interface UpdateInfo {
   download_url: string;
   download_password: string;
 }
+
+export interface CachedMusicInfo {
+  song_id: string;
+  title: string;
+  artist: string;
+  cover_url?: string;
+  file_path: string;
+  last_played_at?: string;
+  file_size_bytes: number;
+}

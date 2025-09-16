@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
 use sqlx::QueryBuilder;
@@ -6,10 +6,9 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_http::reqwest;
 
 use crate::{
-    model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload}, my_util::{get_app_setting, DbPool, MEDIA_ADDR}
+    model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload},
+    my_util::{DbPool, get_app_setting},
 };
-
-use super::my_util::img_url_to_b64;
 
 pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
@@ -49,6 +48,7 @@ pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sql
 }
 
 pub async fn update_music_detail(
+    app_handle: &AppHandle,
     pool: &DbPool,
     payload: UpdateDetailPayload,
 ) -> Result<(), sqlx::Error> {
@@ -107,29 +107,64 @@ pub async fn update_music_detail(
         separator = ", ";
     }
     // --- 特殊处理 cover_url ---
-    if let Some(new_cover_url) = &payload.cover_url {
-        // 仅当数据库中没有 cover_url 或者cover_url以http开头(旧数据)时，才进行转换和更新
+    if let Some(new_remote_url) = &payload.cover_url {
+        // 检查是否需要更新：
+        // 1. 数据库中没有封面
+        // 2. 数据库中的封面是旧数据（远程http链接或Base64数据）
         let should_update_cover = match existing_data.cover_url.as_deref() {
             None => true,
-            Some(url) => url.starts_with("http"),
+            Some(url) => !url.starts_with("http"),
         };
-        if should_update_cover {
-            match img_url_to_b64(new_cover_url).await {
-                Ok(base64_data) => {
-                    builder
-                        .push(separator)
-                        .push("cover_url = ")
-                        .push_bind(base64_data);
-                    separator = ", ";
+
+        // 这自动处理了您指出的“同一专辑同一封面”的去重问题
+        let filename = PathBuf::from(new_remote_url)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map_or_else(
+                || format!("{}.jpg", payload.song_id), // 如果无法解析，使用song_id作为备用
+                |s| s.to_string(),
+            );
+
+        // 2. 获取本地缓存目录的完整路径
+        let app_data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|_| sqlx::Error::Configuration("Failed to get app data dir".into()))?;
+
+        let local_path = app_data_dir.join("cover_cache").join(&filename);
+
+        // 3. [关键] 仅当文件在本地不存在时才下载
+        if !local_path.exists() {
+            match reqwest::get(new_remote_url).await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        match response.bytes().await {
+                            Ok(bytes) => {
+                                // 使用 tokio::fs 进行异步文件写入
+                                if let Err(e) = tokio::fs::write(&local_path, &bytes).await {
+                                    eprintln!(
+                                        "Failed to write cover to cache {}: {}",
+                                        local_path.display(),
+                                        e
+                                    );
+                                } else {
+                                    println!("Cover downloaded: {}", filename);
+                                }
+                            }
+                            Err(e) => eprintln!("Failed to get cover bytes: {}", e),
+                        }
+                    }
                 }
-                Err(e) => {
-                    // 如果转换失败，打印错误日志，但不中断整个更新流程
-                    eprintln!(
-                        "Error converting cover_url to base64 for song {}: {}",
-                        &payload.song_id, e
-                    );
-                }
+                Err(e) => eprintln!("Failed to download cover {}: {}", new_remote_url, e),
             }
+        }
+        if should_update_cover {
+            // 4. 无论下载是否成功（因为它可能已存在），我们都更新数据库以存储*文件名*
+            builder
+                .push(separator)
+                .push("cover_url = ")
+                .push_bind(new_remote_url); // <-- 只存储 "1272200948.jpg" 这种小字符串
+            separator = ", ";
         }
     }
 
@@ -317,11 +352,7 @@ pub async fn cache_music_and_get_file_path(
     if let Some(path_str) = music.file_path.as_deref() {
         if !path_str.is_empty() && Path::new(path_str).exists() {
             println!("缓存命中 (来自前端对象): {}", path_str);
-            return Ok(format!(
-                "http://{}/{}",
-                MEDIA_ADDR,
-                urlencoding::encode(&file_name)
-            ));
+            return Ok(urlencoding::encode(&file_name).to_string());
         }
     }
 
@@ -343,17 +374,65 @@ pub async fn cache_music_and_get_file_path(
     let local_path = cache_dir.join(&file_name);
     let local_path_str = local_path.to_string_lossy().into_owned();
 
+    let should_download_cover = match music.cover_url.as_deref() {
+        None => false,
+        Some(url) => url.starts_with("http"),
+    };
+
+    if should_download_cover {
+        let filename = music
+            .cover_url
+            .as_deref()
+            .and_then(|u| {
+                PathBuf::from(u)
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("{}.jpg", music.song_id));
+
+        let local_path = app_data_dir.join("cover_cache").join(&filename);
+
+        // 3. [关键] 仅当文件在本地不存在时才下载
+        if !local_path.exists() {
+            // 仅在存在远程 URL 且为 http/data 时才尝试下载
+            if let Some(remote_url) = music.cover_url.as_deref() {
+                if remote_url.starts_with("http") || remote_url.starts_with("data:") {
+                    match reqwest::get(remote_url).await {
+                        Ok(response) => {
+                            if response.status().is_success() {
+                                match response.bytes().await {
+                                    Ok(bytes) => {
+                                        // 使用 tokio::fs 进行异步文件写入
+                                        if let Err(e) = tokio::fs::write(&local_path, &bytes).await
+                                        {
+                                            eprintln!(
+                                                "Failed to write cover to cache {}: {}",
+                                                local_path.display(),
+                                                e
+                                            );
+                                        } else {
+                                            println!("Cover downloaded: {}", filename);
+                                        }
+                                    }
+                                    Err(e) => eprintln!("Failed to get cover bytes: {}", e),
+                                }
+                            }
+                        }
+                        Err(e) => eprintln!("Failed to download cover {}: {}", remote_url, e),
+                    }
+                }
+            }
+        }
+    }
+
     // 5. 再次检查文件是否已在磁盘上存在 (防止数据库与文件系统不同步)
     if local_path.exists() {
         println!("缓存命中 (来自磁盘检查): {:?}", &local_path);
         update_music_cache_path(&pool, &music.song_id, &local_path_str)
             .await
             .map_err(|e| format!("(同步)更新数据库失败: {}", e))?;
-        return Ok(format!(
-            "http://{}/{}",
-            MEDIA_ADDR,
-            urlencoding::encode(&file_name)
-        ));
+        return Ok(urlencoding::encode(&file_name).to_string());
     }
 
     // --- 文件不存在，开始下载 ---
@@ -387,12 +466,7 @@ pub async fn cache_music_and_get_file_path(
     update_music_cache_path(&pool, &music.song_id, &local_path_str)
         .await
         .map_err(|e| format!("(下载后)更新数据库失败: {}", e))?;
-
-    Ok(format!(
-        "http://{}/{}",
-        MEDIA_ADDR,
-        urlencoding::encode(&file_name)
-    ))
+    return Ok(urlencoding::encode(&file_name).to_string());
 }
 
 pub async fn export_music_file(

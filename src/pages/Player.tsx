@@ -15,6 +15,7 @@ import LyricScroller from "../components/LyricScroller"; // 确保 LyricScroller
 import "./Player.css"; // 我们将为它创建专属的 CSS
 import { useGlobalMessage } from "../components/MessageHook";
 import { Music } from "../types";
+import { buildCoverUrl } from "../util";
 
 const { Title, Text } = Typography;
 
@@ -107,7 +108,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
       <div
         key={currentMusic.song_id}
         className="player-bg"
-        style={{ backgroundImage: `url(${currentMusic.cover_url})` }}
+        style={{ backgroundImage: `url(${buildCoverUrl(currentMusic.cover_url)})` }}
       />
       {/* {currentMusic.cover_url} */}
       <div className="player-bg-overlay" />

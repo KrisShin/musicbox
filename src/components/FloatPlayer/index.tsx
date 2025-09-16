@@ -1,8 +1,14 @@
 import React, { useState } from "react";
 import { Avatar, Typography } from "antd"; // 1. 移除 Flex 和 Button
-import { PlayCircleFilled, PauseCircleFilled, RightOutlined, LeftOutlined } from "@ant-design/icons"; // 2. 使用实心图标，视觉上更突出
+import {
+  PlayCircleFilled,
+  PauseCircleFilled,
+  RightOutlined,
+  LeftOutlined,
+} from "@ant-design/icons"; // 2. 使用实心图标，视觉上更突出
 import type { Music } from "../../types";
 import "./index.css";
+import { buildCoverUrl } from "../../util";
 
 const { Text } = Typography;
 
@@ -49,7 +55,11 @@ const FloatPlayer: React.FC<FloatPlayerProps> = ({
 
       {/* 您的原始封面区域，点击事件已修改 */}
       <div className="cover-section-interactive" onClick={handleClick}>
-        <Avatar shape="circle" size={50} src={currentMusic.cover_url} />
+        <Avatar
+          shape="circle"
+          size={50}
+          src={buildCoverUrl(currentMusic.cover_url)}
+        />
         <div className="player-icon-overlay">
           {isPlaying ? (
             <PauseCircleFilled

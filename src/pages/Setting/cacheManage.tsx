@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { useGlobalMessage, useGlobalModal } from "../../components/MessageHook";
 import { primaryThemeColor } from "../../main";
 import { useAppStore } from "../../store";
+import { buildCoverUrl } from "../../util";
 
 const { Text } = Typography;
 
@@ -335,7 +336,7 @@ const CacheManagePage: React.FC = () => {
                     <img
                       width={48}
                       alt="cover"
-                      src={item.cover_path || "/icon.png"}
+                      src={buildCoverUrl(item.cover_path)}
                     />
                   }
                   title={item.name}

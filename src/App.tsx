@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Layout, Typography, Image, Flex } from "antd";
 import SearchPage from "./pages/Search";
 import PlaylistPage from "./pages/Playlist";
@@ -17,6 +17,7 @@ import PrivacyPage from "./pages/Setting/Privacy";
 import CacheManagePage from "./pages/Setting/cacheManage";
 import { invoke } from "@tauri-apps/api/core";
 import PlaylistCacheManagePage from "./pages/Setting/PlaylistCacheManage";
+import { buildMusicFileUrl } from "./util";
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -72,9 +73,10 @@ const AppContent = () => {
     if (!audio) return;
 
     // --- 同步歌曲源 ---
-    if (currentMusic && currentMusic.file_path) {
-      if (audio.src !== currentMusic.file_path) {
-        audio.src = currentMusic.file_path;
+    const buildPath = buildMusicFileUrl(currentMusic?.file_path);
+    if (currentMusic && buildPath) {
+      if (audio.src !== buildPath) {
+        audio.src = buildPath;
       }
     } else {
       audio.src = "";
@@ -85,7 +87,7 @@ const AppContent = () => {
       if (isPlaying) {
         // 检查是否已暂停，避免不必要的 play() 调用
         if (audio.paused) {
-          if (!currentMusic?.file_path) return; // 如果没有播放链接，就不尝试播放
+          if (!currentMusic?.file_path || !buildPath) return; // 如果没有播放链接，就不尝试播放
           invoke("update_music_last_play_time", {
             songId: currentMusic.song_id,
           }).catch(console.error);
@@ -120,16 +122,17 @@ const AppContent = () => {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentMusic?.file_path) {
+    const buildPath = buildMusicFileUrl(currentMusic?.file_path);
+    if (!audio || !buildPath) {
       handleClose(); // 如果没有播放链接，就关闭播放器
       return;
     }
 
-    if (audio.src !== currentMusic.file_path) {
-      audio.src = currentMusic.file_path;
+    if (buildPath && audio.src !== buildPath) {
+      audio.src = buildPath;
       if (isPlaying && !audio.played) {
         invoke("update_music_last_play_time", {
-          songId: currentMusic.song_id,
+          songId: currentMusic?.song_id,
         }).catch(console.error);
         audio.play().catch((e) => console.error("自动播放失败:", e));
       }
