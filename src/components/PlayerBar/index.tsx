@@ -27,7 +27,9 @@ interface PlayerBarProps {
 }
 const formatTime = (time: number) => {
   const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+  const seconds = Math.floor(time % 60)
+    .toString()
+    .padStart(2, "0");
   return `${minutes}:${seconds}`;
 };
 
@@ -53,16 +55,16 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
     const handleDurationChange = () => setDuration(audio.duration);
 
     // 监听原生 audio 事件
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("durationchange", handleDurationChange);
     // loadedmetadata 也可以在这里监听来首次设置 duration
-    audio.addEventListener('loadedmetadata', handleDurationChange);
+    audio.addEventListener("loadedmetadata", handleDurationChange);
 
     return () => {
       // 组件卸载时清理监听器
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('durationchange', handleDurationChange);
-      audio.removeEventListener('loadedmetadata', handleDurationChange);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("durationchange", handleDurationChange);
+      audio.removeEventListener("loadedmetadata", handleDurationChange);
     };
   }, [audioRef]); // 依赖 audioRef
 
@@ -86,7 +88,6 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
       setCurrentTime(value); // 立即更新UI，避免延迟感
     }
   };
-
 
   return (
     <Footer
@@ -180,11 +181,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                   )}
                 </Text>
               </Flex>
-              <a
-                color="pink"
-                style={{ padding: "5px" }}
-                onClick={onSave}
-              >
+              <a color="pink" style={{ padding: "5px" }} onClick={onSave}>
                 <DownloadOutlined style={{ color: "#e87997" }} />
               </a>
             </Flex>
