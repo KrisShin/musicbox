@@ -278,11 +278,11 @@ pub async fn run_auto_cache_cleanup(app_handle: &AppHandle, pool: &DbPool) -> Re
     }
 
     // --- 任务2: 检查并清理超过大小上限的缓存 (如果已启用) ---
-    // let threshold_gb_str = get_app_setting(pool, "auto_clean_threshold_gb".to_string())
-    //     .await
-    //     .map_err(|e| e.to_string())?
-    //     .unwrap_or_else(|| "0".to_string());
-    let threshold_gb: f64 =  0.01; // threshold_gb_str.parse().unwrap_or(0.0);
+    let threshold_gb_str = get_app_setting(pool, "auto_clean_threshold_gb".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "0".to_string());
+    let threshold_gb: f64 = threshold_gb_str.parse().unwrap_or(0.0);
 
     if threshold_gb > 0.0 {
         println!(

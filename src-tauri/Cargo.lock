@@ -2552,7 +2552,7 @@ dependencies = [
 
 [[package]]
 name = "musicbox"
-version = "2.1.3"
+version = "2.1.4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
