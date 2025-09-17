@@ -1,6 +1,6 @@
 // src/pages/Setting/ManualCacheManage.tsx
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom"; // 导入新 hooks
 import { invoke } from "@tauri-apps/api/core";
 import { Table, Input, Button, Flex, Typography, Space, Tag } from "antd";
@@ -30,6 +30,8 @@ const PlaylistCacheManagePage: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const { currentMusic, handleClose } = useAppStore();
+  const pageRef = useRef<HTMLElement | null>(null)
+  const headerRef = useRef<HTMLElement | null>(null)
 
   const fetchData = useCallback(async () => {
     if (!playlistId) return;
@@ -102,6 +104,7 @@ const PlaylistCacheManagePage: React.FC = () => {
       title: "歌曲",
       dataIndex: "title",
       key: "title",
+      width: 200,
       render: (text, record) => (
         <Flex>
           <img
@@ -154,61 +157,65 @@ const PlaylistCacheManagePage: React.FC = () => {
     },
   };
   return (
-    <Flex vertical style={{ height: "100%", background: "#fff" }}>
+    <Flex vertical style={{ height: "100%", background: "#fff" }} ref={pageRef}>
       {/* 2. 顶部导航栏和搜索栏保持不变，它们会自然占据所需的高度。
                我们添加 flexShrink: 0 来确保它们在空间不足时不会被压缩。 */}
-      <Flex
-        align="center"
-        justify="space-between"
-        style={{
-          padding: "10px 15px",
-          borderBottom: "1px solid #f0f0f0",
-          flexShrink: 0,
-        }}
-      >
-        <Space>
-          <ArrowLeftOutlined
-            style={{
-              marginRight: "16px",
-              color: primaryThemeColor,
-              fontSize: "16px",
-            }}
-            onClick={() => navigate(-1)}
-          />
-          <Title
-            level={5}
-            style={{ margin: 0 }}
-            ellipsis={{ tooltip: playlistName }}
-          >
-            {playlistName}
-          </Title>
-        </Space>
-        <Button
-          type="primary"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={handleClear}
+      <Flex vertical ref={headerRef}>
+        <Flex
+          align="center"
+          justify="space-between"
+          style={{
+            padding: "10px 15px",
+            borderBottom: "1px solid #f0f0f0",
+            flexShrink: 0,
+          }}
         >
-          清理
-        </Button>
-      </Flex>
+          <Space>
+            <ArrowLeftOutlined
+              style={{
+                marginRight: "16px",
+                color: primaryThemeColor,
+                fontSize: "16px",
+              }}
+              onClick={() => navigate(-1)}
+            />
+            <Title
+              level={5}
+              style={{ margin: 0 }}
+              ellipsis={{ tooltip: playlistName }}
+            >
+              {playlistName}
+            </Title>
+          </Space>
+          <Button
+            type="primary"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={handleClear}
+          >
+            清理
+          </Button>
+        </Flex>
 
-      <Flex
-        justify="space-between"
-        align="center"
-        style={{ padding: "10px 15px", flexShrink: 0 }}
-      >
-        <Search
-          placeholder="搜索歌名或歌手"
-          onSearch={setSearchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 240 }}
-        />
-        <Tag color="blue">{`共 ${filteredSongs.length} 首，已选 ${selectedRowKeys.length} 首`}</Tag>
+        <Flex
+          justify="space-between"
+          align="center"
+          style={{ padding: "10px 15px", flexShrink: 0 }}
+        >
+          <Search
+            placeholder="搜索歌名或歌手"
+            onSearch={setSearchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 240 }}
+          />
+          <Tag color="blue">{`共 ${filteredSongs.length} 首，已选 ${selectedRowKeys.length} 首`}</Tag>
+        </Flex>
       </Flex>
 
       <div style={{ flex: 1, overflow: "auto" }}>
         <Table
+          virtual
+          scroll={{ y: (pageRef.current?.offsetHeight || 800) - (headerRef.current?.offsetHeight || 0) - 40 }}
           rowKey="song_id"
           columns={columns}
           dataSource={filteredSongs}

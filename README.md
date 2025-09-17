@@ -7,7 +7,7 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 
 ## Change log
 
-### Release 20250916
+### Release 20250917
 
 - 1. [新增]支持手动清理歌单外的缓存文件
 - 2. [新增]支持手动清理超过 3 个月未播放的歌曲
@@ -18,8 +18,12 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 - 7. [优化]歌单支持搜索歌曲
 - 8. [优化]歌单支持修改封面
 - 9. [优化]歌单修复默认封面
-- 10. [优化]悬浮播放器可以隐藏
-- 10. [修复]了部分已知 bug
+- 10. [优化]悬浮播放器可以切换隐藏显示
+- 11. [优化]图片加载显示方式
+- 12. [优化]批量下载修改为加载一首就立即下载, 不需要等待全部加载完后统一下载
+- 13. [优化]所有下载增加系统通知
+- 14. [优化]修复歌单页面歌曲过多导致渲染缓慢问题
+- 15. [修复]了部分已知bug
 
 ### Release 20250912
 

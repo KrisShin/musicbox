@@ -1,5 +1,5 @@
 use crate::{
-    model::{PlaylistInfo, PlaylistMusic},
+    model::{PlaylistInfo, PlaylistMusicItem},
     my_util::DbPool,
 };
 
@@ -69,21 +69,23 @@ pub async fn get_all_playlists(
 pub async fn get_music_by_playlist_id(
     pool: &DbPool,
     playlist_id: i64,
-) -> Result<Vec<PlaylistMusic>, sqlx::Error> {
-    let music_list = sqlx::query_as::<_, PlaylistMusic>(
+) -> Result<Vec<PlaylistMusicItem>, sqlx::Error> {
+    let music_list = sqlx::query_as::<_, PlaylistMusicItem>(
         r#"
             SELECT
-                s.*, -- s.* 会被 sqlx::FromRow 自动映射到拥有 #[sqlx(flatten)] 的字段
-                ps.position,
-                ps.added_to_list_at
+                m.song_id,
+                m.title,
+                m.artist,
+                m.cover_url,
+                m.file_path
             FROM
-                playlist_music ps
+                playlist_music pm
             INNER JOIN
-                music s ON ps.song_id = s.song_id
+                music m ON pm.song_id = m.song_id
             WHERE
-                ps.playlist_id = ?
+                pm.playlist_id = ?
             ORDER BY
-                ps.position DESC
+                pm.position DESC
         "#,
     )
     .bind(playlist_id)

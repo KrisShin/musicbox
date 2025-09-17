@@ -4,7 +4,7 @@ use super::my_util;
 use crate::{
     model::{
         CacheAnalysisResult, CachedMusicInfo, Music, PlaylistCacheInfo, PlaylistInfo,
-        PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload,
+        PlaylistMusicItem, ToggleMusicPayload, UpdateDetailPayload,
     },
     music::{self},
     music_cache,
@@ -83,7 +83,7 @@ async fn get_all_playlists(
 async fn get_music_by_playlist_id(
     playlist_id: i64,
     state: tauri::State<'_, DbPool>,
-) -> Result<Vec<PlaylistMusic>, String> {
+) -> Result<Vec<PlaylistMusicItem>, String> {
     playlist::get_music_by_playlist_id(state.inner(), playlist_id)
         .await
         .map_err(|e| e.to_string())

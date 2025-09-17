@@ -37,10 +37,7 @@ export interface PlaylistInfo {
   updated_at: string; // 可选字段，可能在某些 API 中不存在
 }
 
-export interface PlaylistMusic {
-  added_to_list_at: string; // 添加到歌单的时间
-  music: Music; // 歌曲信息
-  position: number; // 在歌单中的位置
+export interface PlaylistMusic extends Music {
 }
 
 export interface UpdateInfo {

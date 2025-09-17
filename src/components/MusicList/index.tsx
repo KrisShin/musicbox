@@ -13,9 +13,11 @@ const MusicListItem = memo(({ item, index, primaryThemeColor, handlePlayFromSear
 
     const onHandlePlayFromSearch = (music: Music, index: number) => {
         try {
+      messageApi.destroy();
             messageApi.info(`正在加载 ${music.title} 的详情...`, 1.5);
             handlePlayFromSearch(index)
         } catch (error) {
+      messageApi.destroy();
             messageApi.error(`播放 ${music.title}失败, 请稍后重试`);
             console.error(`播放 ${music.title} 失败:`, error);
         }

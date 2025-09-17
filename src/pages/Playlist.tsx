@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Flex,
   Image,
@@ -31,7 +31,7 @@ const { Search } = Input;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode, handleSave } = useAppStore();
+  const { startPlayback, cyclePlayMode, saveSongWithNotifications } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
@@ -49,6 +49,10 @@ const PlaylistPage: React.FC = () => {
   const [isCoverModalVisible, setIsCoverModalVisible] = useState(false);
   const [selectedCoverUrl, setSelectedCoverUrl] = useState<string | null>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [tableHeight, setTableHeight] = useState(0);
+
   const messageApi = useGlobalMessage();
 
   const filteredMusic = useMemo(() => {
@@ -57,15 +61,15 @@ const PlaylistPage: React.FC = () => {
     }
     return selectedPlaylistMusic.filter(
       (item) =>
-        item.music.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.music.artist.toLowerCase().includes(searchText.toLowerCase())
+        item.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.artist.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [selectedPlaylistMusic, searchText]);
 
   const uniqueCoverUrls = useMemo(() => {
     // 1. 提取所有 cover_url
     const allCovers = selectedPlaylistMusic
-      .map((item) => item.music.cover_url)
+      .map((item) => item.cover_url)
       .filter(Boolean) as string[]; // 过滤掉 null/undefined
 
     // 2. 使用 Set 自动去重，然后转回数组
@@ -74,12 +78,13 @@ const PlaylistPage: React.FC = () => {
 
   // --- 数据获取 ---
 
-  const fetchPlaylists = async () => {
+  const fetchPlaylists = useCallback(async () => {
+    setLoadingPlaylists(true);
     try {
       const result: PlaylistInfo[] = await invoke("get_all_playlists");
       setPlaylists(result);
-      // 如果有歌单，默认选中第一个
-      if (result.length > 0) {
+      // 如果当前没有选中的歌单，并且获取到了歌单，则默认选中第一个
+      if (selectedPlaylistId === null && result.length > 0) {
         setSelectedPlaylistId(result[0].id);
       }
     } catch (error) {
@@ -88,7 +93,24 @@ const PlaylistPage: React.FC = () => {
     } finally {
       setLoadingPlaylists(false);
     }
-  };
+  }, [messageApi, selectedPlaylistId]); // 依赖 selectedPlaylistId 以避免重复设置
+
+  // 函数2: 获取指定歌单的音乐 (保持独立)
+  const fetchPlaylistMusic = useCallback(async () => {
+    if (selectedPlaylistId === null) return; // 防御性编程
+    setLoadingMusic(true);
+    try {
+      const result: PlaylistMusic[] = await invoke("get_music_by_playlist_id", {
+        playlistId: selectedPlaylistId,
+      });
+      setSelectedPlaylistMusic(result);
+    } catch (error) {
+      messageApi.error("加载歌曲列表失败");
+      console.error(error);
+    } finally {
+      setLoadingMusic(false);
+    }
+  }, [selectedPlaylistId, messageApi]);
 
   const columns: TableProps<PlaylistMusic>["columns"] = [
     {
@@ -102,14 +124,14 @@ const PlaylistPage: React.FC = () => {
     },
     {
       title: "歌曲",
-      dataIndex: ["music", "title"],
+      dataIndex: "title",
       key: "title",
       render: (text, record) => (
         <Flex>
           <Avatar
             shape="square"
             size={40}
-            src={buildCoverUrl(record.music.cover_url)}
+            src={buildCoverUrl(record.cover_url)}
           />
           <Flex vertical justify="center" style={{ marginLeft: 10 }}>
             <Text style={{ maxWidth: 150 }} ellipsis={{ tooltip: text }}>
@@ -118,9 +140,9 @@ const PlaylistPage: React.FC = () => {
             <Text
               type="secondary"
               style={{ maxWidth: 150 }}
-              ellipsis={{ tooltip: record.music.artist }}
+              ellipsis={{ tooltip: record.artist }}
             >
-              {record.music.artist}
+              {record.artist}
             </Text>
           </Flex>
         </Flex>
@@ -139,7 +161,7 @@ const PlaylistPage: React.FC = () => {
             icon={<DownloadOutlined />}
             onClick={(e) => {
               e.stopPropagation();
-              handleDownload(record.music);
+              handleDownload(record);
             }}
           />
           <Button
@@ -149,7 +171,7 @@ const PlaylistPage: React.FC = () => {
             icon={<DeleteOutlined />}
             onClick={(e) => {
               e.stopPropagation();
-              handleRemoveFromPlaylist(record.music);
+              handleRemoveFromPlaylist(record);
             }}
           />
         </Flex>
@@ -172,44 +194,52 @@ const PlaylistPage: React.FC = () => {
       messageApi.error(`更新封面失败: ${error}`);
     }
   };
-  const refreshData = () => {
-    fetchPlaylists(); // 刷新左侧所有歌单列表（确保封面更新）
-    fetchPlaylistMusic(); // 刷新当前歌单的歌曲列表
-  };
+  const refreshData = useCallback(() => {
+    fetchPlaylists();
+    if (selectedPlaylistId) {
+      fetchPlaylistMusic();
+    }
+  }, [fetchPlaylists, fetchPlaylistMusic, selectedPlaylistId]);
   // 1. 组件加载时，获取所有歌单
   useEffect(() => {
     fetchPlaylists();
-  }, []);
+  }, []); // 空依赖数组确保只运行一次
 
-  const fetchPlaylistMusic = async () => {
-    setLoadingMusic(true);
-    try {
-      const result: PlaylistMusic[] = await invoke("get_music_by_playlist_id", {
-        playlistId: selectedPlaylistId,
-      });
-      setSelectedPlaylistMusic(result);
-    } catch (error) {
-      messageApi.error("加载歌曲列表失败");
-      console.error(error);
-    } finally {
-      setLoadingMusic(false);
-    }
-  };
-  // 2. 当选中的歌单 ID 变化时，获取该歌单的歌曲列表
+  // Effect 2: 仅在 selectedPlaylistId 变化时获取该歌单的歌曲
   useEffect(() => {
-    if (selectedPlaylistId === null) return;
+    if (selectedPlaylistId !== null) {
+      fetchPlaylistMusic();
+    }
+    const calculateTableHeight = () => {
+      if (headerRef.current) {
+        // 表格的高度 = 父容器高度 - 头部元素高度
+        // 父容器的高度由 App.tsx 的 Flex 布局决定，这里我们直接用 100% 来计算
+        // 这里的 15px 是 playlist-header-sticky 的 padding-bottom，需要减去
+        const headerHeight = headerRef.current.offsetHeight + 15;
+        setTableHeight(headerHeight);
+      }
+    };
 
-    fetchPlaylistMusic();
-  }, [selectedPlaylistId]);
+    // 首次计算
+    calculateTableHeight();
 
-  // --- 派生状态 ---
+    // 使用 ResizeObserver 监听头部大小变化，以便在窗口大小调整时重新计算
+    const resizeObserver = new ResizeObserver(calculateTableHeight);
+    if (headerRef.current) {
+      resizeObserver.observe(headerRef.current);
+    }
+
+    // 组件卸载时清理 observer
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [selectedPlaylistId, fetchPlaylistMusic]);
+
 
   // 3. 使用 useMemo 提高性能，避免每次渲染都重新查找
   const selectedPlaylist = useMemo(() => {
     return playlists.find((p) => p.id === selectedPlaylistId);
   }, [playlists, selectedPlaylistId]);
-
-  // --- 事件处理 ---
 
   // 4. 处理歌单重命名
   const handleRenamePlaylist = async (newName: string) => {
@@ -230,6 +260,7 @@ const PlaylistPage: React.FC = () => {
         "get_all_playlists"
       );
       setPlaylists(updatedPlaylists);
+      refreshData();
       messageApi.success("歌单已重命名");
     } catch (error) {
       messageApi.error("重命名失败");
@@ -239,8 +270,7 @@ const PlaylistPage: React.FC = () => {
 
   const handlePlaySong = (index: number) => {
     // 将 PlaylistMusic[] 转换为 Music[]
-    const musicQueue = selectedPlaylistMusic.map((s) => s.music);
-    startPlayback(musicQueue, index).catch((error) => console.error(error));
+    startPlayback(selectedPlaylistMusic, index).then(() => !selectedPlaylistMusic[index].cover_url && refreshData()).catch((error) => console.error(error));
   };
 
   const handleRemoveFromPlaylist = async (music: Music) => {
@@ -252,7 +282,6 @@ const PlaylistPage: React.FC = () => {
           song_ids: [music.song_id],
         },
       });
-
       fetchPlaylistMusic();
       messageApi.success(`已从“${selectedPlaylist.name}”中移除`);
     } catch (error) {
@@ -269,15 +298,13 @@ const PlaylistPage: React.FC = () => {
     cyclePlayMode(mode); // 假设你在 store 中也添加了 setPlayMode
 
     // 2. 播放第一首歌
-    const musicQueue = selectedPlaylistMusic.map((s) => s.music);
     const startIndex =
-      mode === "shuffle" ? Math.floor(Math.random() * musicQueue.length) : 0;
+      mode === "shuffle" ? Math.floor(Math.random() * selectedPlaylistMusic.length) : 0;
     messageApi.success(
-      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${
-        selectedPlaylist?.name || "歌单"
-      }, 即将播放 ${musicQueue[startIndex].title}`
+      `${mode === "sequence" ? "顺序" : "随机"} 播放 ${selectedPlaylist?.name || "歌单"
+      }, 即将播放 ${selectedPlaylistMusic[startIndex].title}`
     );
-    startPlayback(musicQueue, startIndex).catch((error) =>
+    startPlayback(selectedPlaylistMusic, startIndex).catch((error) =>
       console.error(error)
     );
   };
@@ -285,7 +312,7 @@ const PlaylistPage: React.FC = () => {
   const handleDownload = async (music: Music) => {
     try {
       messageApi.success(`开始下载 ${music.title}...`);
-      handleSave([music])
+      saveSongWithNotifications([music])
         .then(async (_: string) => {
           messageApi.destroy();
           messageApi.success(`${music.title}下载完成`);
@@ -305,11 +332,11 @@ const PlaylistPage: React.FC = () => {
   // --- 渲染 ---
 
   return (
-    <Flex vertical className="playlist-page-container">
+    <Flex vertical className="playlist-page-container" ref={containerRef}>
       {selectedPlaylist ? (
         <>
           {/* --- 固定的头部 --- */}
-          <div className="playlist-header-sticky">
+          <div className="playlist-header-sticky" ref={headerRef}>
             <Flex vertical gap="small" className="playlist-header">
               {/* ... 封面和信息部分不变 ... */}
               <Flex gap="large" className="header-info-section">
@@ -368,11 +395,10 @@ const PlaylistPage: React.FC = () => {
                       `正在下载 ${selectedPlaylistMusic.length} 首歌曲...`,
                       10
                     );
-                    handleSave(selectedPlaylistMusic.map((s) => s.music)).then(
+                    saveSongWithNotifications(selectedPlaylistMusic).then(
                       () => {
                         messageApi.destroy();
                         messageApi.success(`全部歌曲下载完成`);
-                        fetchPlaylistMusic();
                       }
                     );
                   }}
@@ -389,22 +415,22 @@ const PlaylistPage: React.FC = () => {
               />
             </Flex>
           </div>
-
           {/* --- 可滚动的内容 --- */}
           <div className="song-list-scrollable">
-            <Spin spinning={loadingMusic}>
-              <Table
-                rowKey={(record) => record.music.song_id}
-                columns={columns}
-                dataSource={filteredMusic}
-                pagination={false}
-                size="small"
-                onRow={(_, rowIndex) => ({
-                  onClick: () => handlePlaySong(rowIndex!),
-                })}
-                rowClassName="song-table-row"
-              />
-            </Spin>
+            <Table
+              virtual
+              scroll={{ y: (containerRef.current?.offsetHeight || 600) - tableHeight - 24 }}
+              loading={loadingMusic}
+              rowKey={(record) => record.song_id}
+              columns={columns}
+              dataSource={filteredMusic}
+              pagination={false}
+              size="small"
+              onRow={(_, rowIndex) => ({
+                onClick: () => handlePlaySong(rowIndex!),
+              })}
+              rowClassName="song-table-row"
+            />
           </div>
         </>
       ) : (
@@ -484,9 +510,8 @@ const PlaylistPage: React.FC = () => {
                 <Image
                   src={buildCoverUrl(item)}
                   preview={false}
-                  className={`cover-selector-item ${
-                    selectedCoverUrl === item ? "selected" : ""
-                  }`}
+                  className={`cover-selector-item ${selectedCoverUrl === item ? "selected" : ""
+                    }`}
                   onClick={() => setSelectedCoverUrl(item!)}
                 />
               </List.Item>

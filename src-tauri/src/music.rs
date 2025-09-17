@@ -562,7 +562,6 @@ pub async fn export_music_file(
                 final_path = download_path.join(new_filename);
                 counter += 1;
             }
-            println!("歌曲导出到 {} 。", final_path.display());
 
             // [优化] 使用异步文件复制 tokio::fs::copy，避免阻塞线程
             match tokio::fs::copy(&source_path, &final_path).await {

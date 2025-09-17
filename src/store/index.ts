@@ -17,14 +17,12 @@ let lastSavedValue: string | null = null;
 const tauriStorage: StateStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
     if (value !== lastSavedValue) {
-      console.log("Persist: 持久化状态已更改, 正在保存到后端...");
       await invoke("save_app_setting", { key: name, value });
       lastSavedValue = value; // 写入成功后，更新内存缓存
     }
   },
   getItem: async (name: string): Promise<string | null> => {
     // 从后端加载时，同时设置内存缓存，以便进行首次比较
-    console.log("Persist: 正在从后端加载状态...");
     const value = await invoke<string | null>("get_app_setting", { key: name });
     lastSavedValue = value; // 初始化缓存
     return value;
@@ -69,7 +67,7 @@ interface AppState {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   cyclePlayMode: (mode?: PlayMode) => Promise<string>; // [新增] 切换播放模式
-  saveSongWithNotifications: (music: Music) => Promise<string>; // 下载时发送通知
+  saveSongWithNotifications: (musicList: Music[]) => Promise<string>; // 下载时发送通知
 }
 
 // 3. 创建 Zustand store
@@ -165,17 +163,15 @@ export const useAppStore = create<AppState>()(
       },
       handleSave: async (musicList: Music[]) => {
         try {
-          const musicIds = [];
+          let resultMsg = ''
           for (const music of musicList) {
             if (!music.file_path) {
               await get().handleDetail(music);
             }
-            musicIds.push(music.song_id);
+            resultMsg = await invoke<string>("export_music_file", {
+              musicIds: [music.song_id],
+            });
           }
-          console.log({ type: "info", content: "正在获取歌曲信息..." });
-          const resultMsg = await invoke<string>("export_music_file", {
-            musicIds: musicIds,
-          });
 
           console.log(resultMsg);
           return resultMsg;
@@ -259,11 +255,11 @@ export const useAppStore = create<AppState>()(
         set({ playMode: modes[nextIndex] });
         return modes[nextIndex]; // 返回新的播放模式
       },
-      saveSongWithNotifications: async (music?: Music) => {
+      saveSongWithNotifications: async (musicList?: Music[]) => {
         const { handleSave, currentMusic } = get();
-        if (!music) {
+        if (!musicList) {
           if (!currentMusic) throw new Error("未选中歌曲, 无法下载");
-          music = currentMusic;
+          musicList = [currentMusic];
         }
         try {
           // 1. 检查并请求权限 (一次授权，终身使用)
@@ -277,32 +273,32 @@ export const useAppStore = create<AppState>()(
           if (hasPermission) {
             sendNotification({
               title: "开始缓存",
-              body: `正在将《${music.title}》保存到本地...`,
+              body: musicList.length === 1 ? `正在将《${musicList[0].title}》保存到本地...` : '正在将多首歌曲保存到本地...',
               // 你还可以添加一个图标
-              // icon: 'path/to/icon.png'
+              icon: '/icon.png'
             });
           }
 
           // 3. 执行核心的缓存操作
-          const file_path = await handleSave([music]);
+          const file_path = await handleSave(musicList);
 
           // 4. 缓存成功后，发送“完成”通知
           if (hasPermission) {
             sendNotification({
               title: "缓存完成 🎉",
-              body: `歌曲《${music.title}》已成功保存到本地！`,
+              body: musicList.length===1?`歌曲《${musicList[0].title}》已成功保存到本地！`:'所有歌曲已成功保存到本地！',
             });
           }
           return file_path;
         } catch (error) {
-          console.error(`缓存歌曲《${music.title}》时出错:`, error);
+          console.error(`缓存歌曲时出错:`, error);
 
           // 5. (可选) 如果失败，也可以发送一个失败通知
           const hasPermission = await isPermissionGranted();
           if (hasPermission) {
             sendNotification({
               title: "缓存失败 😥",
-              body: `无法缓存歌曲《${music.title}》，请检查网络或稍后重试。`,
+              body: `无法缓存歌曲，请检查网络或稍后重试。`,
             });
           }
           throw new Error(`${error}`);

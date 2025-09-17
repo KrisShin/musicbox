@@ -83,10 +83,14 @@ export const searchMusic = async (keyword: string): Promise<SearchResult> => {
 
 export const musicDetail = async (music: Music): Promise<Music> => {
   try {
-    const fullDetailUrl = `${BASE_URL}${music.url}`;
     const dbMusic = await invoke<Music[]>("get_music_list_by_ids", {
       songIds: [music.song_id],
     }).then((res) => (res ? res[0] : null));
+
+    if (!dbMusic) {
+      throw new Error("数据库中未找到该歌曲的基本信息");
+    }
+    const fullDetailUrl = `${BASE_URL}${dbMusic.url}`;
 
     if (dbMusic && dbMusic.play_id && dbMusic.file_path) {
       console.log(`(DB) 已有详情，直接返回: ${music.title}`);
@@ -102,7 +106,15 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     const play_url = await fetchMusicPlayUrl(music, fullDetailUrl);
 
     const payload = {
-      ...music,
+      ...dbMusic,
+      play_id: music.play_id,
+      lyric: music.lyric,
+      cover_url: music.cover_url,
+      duration: music.duration,
+      download_extra: music.download_extra,
+      download_mp3_id: music.download_mp3_id,
+      file_path: music.file_path,
+      last_played_at: music.last_played_at,
       play_url: play_url,
       download_mp3: play_url,
     };

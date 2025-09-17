@@ -65,13 +65,13 @@ pub struct PlaylistInfo {
     pub is_in: bool,
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct PlaylistMusic {
-    #[sqlx(flatten)]
-    pub music: Music,
-
-    pub position: i64,
-    pub added_to_list_at: String,
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct PlaylistMusicItem {
+    pub song_id: String,
+    pub title: String,
+    pub artist: String,
+    pub cover_url: Option<String>,
+    pub file_path: Option<String>,
 }
 
 // [新增] 为缓存分析接口定义返回的数据结构

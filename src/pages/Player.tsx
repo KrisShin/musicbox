@@ -44,7 +44,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
     handlePlayPause,
     handleNext,
     handlePrev,
-    handleSave,
+    saveSongWithNotifications,
     cyclePlayMode,
   } = useAppStore();
 
@@ -85,7 +85,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
     if (!music) music = currentMusic;
     try {
       messageApi.success(`开始下载 ${music.title}...`);
-      handleSave([music])
+      saveSongWithNotifications([music])
         .then(async (_: string) => {
           messageApi.destroy();
           messageApi.success(`${music.title}下载完成`);
