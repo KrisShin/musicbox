@@ -1,22 +1,35 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 import { Music } from "../types";
 import { musicDetail, searchMusic } from "../util/crawler";
-import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
 
-// 1. 定义与后端交互的自定义存储引擎
-const tauriStorage = {
+// 1. 在内存中创建一个缓存，用于存储最后一次保存到数据库的 *字符串值*
+let lastSavedValue: string | null = null;
+
+// 2. 定义与后端交互的自定义存储引擎 (实现 StateStorage 接口)
+// StateStorage 只处理原始字符串，这让我们得以绕过所有复杂的泛型类型问题
+const tauriStorage: StateStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
-    // `name` 就是我们 persist 中定义的名字 'frontend-cache'
-    await invoke("save_app_setting", { key: name, value });
+    if (value !== lastSavedValue) {
+      await invoke("save_app_setting", { key: name, value });
+      lastSavedValue = value; // 写入成功后，更新内存缓存
+    }
   },
   getItem: async (name: string): Promise<string | null> => {
-    return await invoke("get_app_setting", { key: name });
+    // 从后端加载时，同时设置内存缓存，以便进行首次比较
+    const value = await invoke<string | null>("get_app_setting", { key: name });
+    lastSavedValue = value; // 初始化缓存
+    return value;
   },
   removeItem: async (name: string): Promise<void> => {
-    // 也可以实现一个删除的 command，这里我们先用保存空字符串代替
     await invoke("save_app_setting", { key: name, value: "" });
+    lastSavedValue = null;
   },
 };
 
@@ -54,7 +67,7 @@ interface AppState {
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   cyclePlayMode: (mode?: PlayMode) => Promise<string>; // [新增] 切换播放模式
-  saveSongWithNotifications: (music: Music) => Promise<string>; // 下载时发送通知
+  saveSongWithNotifications: (musicList: Music[]) => Promise<string>; // 下载时发送通知
 }
 
 // 3. 创建 Zustand store
@@ -150,23 +163,24 @@ export const useAppStore = create<AppState>()(
       },
       handleSave: async (musicList: Music[]) => {
         try {
-          const musicIds = []
+          let resultMsg = ''
           for (const music of musicList) {
             if (!music.file_path) {
               await get().handleDetail(music);
             }
-            musicIds.push(music.song_id)
+            resultMsg = await invoke<string>("export_music_file", {
+              musicIds: [music.song_id],
+            });
           }
-          console.log({ type: 'info', content: '正在获取歌曲信息...' });
-          const resultMsg = await invoke<string>('export_music_file', {
-            musicIds: musicIds,
-          });
 
           console.log(resultMsg);
           return resultMsg;
         } catch (error: any) {
-          console.error('保存文件失败:', error);
-          console.log({ type: 'error', content: `保存失败: ${error.toString()}` });
+          console.error("保存文件失败:", error);
+          console.log({
+            type: "error",
+            content: `保存失败: ${error.toString()}`,
+          });
           throw new Error(error);
         }
       },
@@ -241,66 +255,63 @@ export const useAppStore = create<AppState>()(
         set({ playMode: modes[nextIndex] });
         return modes[nextIndex]; // 返回新的播放模式
       },
-      saveSongWithNotifications: async (music?: Music) => {
+      saveSongWithNotifications: async (musicList?: Music[]) => {
         const { handleSave, currentMusic } = get();
-        if (!music) {
+        if (!musicList) {
           if (!currentMusic) throw new Error("未选中歌曲, 无法下载");
-          music = currentMusic;
-        };
+          musicList = [currentMusic];
+        }
         try {
           // 1. 检查并请求权限 (一次授权，终身使用)
           let hasPermission = await isPermissionGranted();
           if (!hasPermission) {
             const permissionResult = await requestPermission();
-            hasPermission = permissionResult === 'granted';
+            hasPermission = permissionResult === "granted";
           }
 
           // 2. 如果有权限，发送“开始缓存”通知
           if (hasPermission) {
             sendNotification({
-              title: '开始缓存',
-              body: `正在将《${music.title}》保存到本地...`,
+              title: "开始缓存",
+              body: musicList.length === 1 ? `正在将《${musicList[0].title}》保存到本地...` : '正在将多首歌曲保存到本地...',
               // 你还可以添加一个图标
-              // icon: 'path/to/icon.png'
+              icon: '/icon.png'
             });
           }
 
           // 3. 执行核心的缓存操作
-          const file_path = await handleSave([music]);
+          const file_path = await handleSave(musicList);
 
           // 4. 缓存成功后，发送“完成”通知
           if (hasPermission) {
             sendNotification({
-              title: '缓存完成 🎉',
-              body: `歌曲《${music.title}》已成功保存到本地！`,
+              title: "缓存完成 🎉",
+              body: musicList.length===1?`歌曲《${musicList[0].title}》已成功保存到本地！`:'所有歌曲已成功保存到本地！',
             });
           }
           return file_path;
         } catch (error) {
-          console.error(`缓存歌曲《${music.title}》时出错:`, error);
+          console.error(`缓存歌曲时出错:`, error);
 
           // 5. (可选) 如果失败，也可以发送一个失败通知
           const hasPermission = await isPermissionGranted();
           if (hasPermission) {
             sendNotification({
-              title: '缓存失败 😥',
-              body: `无法缓存歌曲《${music.title}》，请检查网络或稍后重试。`,
+              title: "缓存失败 😥",
+              body: `无法缓存歌曲，请检查网络或稍后重试。`,
             });
           }
           throw new Error(`${error}`);
         }
-      }
+      },
     }),
     {
-      // 4. 配置 persist 中间件
-      name: "frontend-cache", // 这将是我们在数据库中存储的 key
-      storage: createJSONStorage(() => tauriStorage), // 使用我们自定义的 Tauri 存储引擎
-
-      // 5. [关键] 选择性持久化：只保存我们需要的状态
+      name: "frontend-cache", // [核心修复] persist 中间件会自动使用 createJSONStorage 来包装我们提供的原始 tauriStorage // 这解决了所有的类型冲突
+      storage: createJSONStorage(() => tauriStorage), // [关键] partialize 保持不变
       partialize: (state) => ({
         currentMusic: state.currentMusic,
         playingMusicIndex: state.playingMusicIndex,
-        musicList: state.musicList, // 例如，保存上次的搜索列表
+        musicList: state.musicList,
         currentKeyword: state.currentKeyword,
         playQueue: state.playQueue,
         playMode: state.playMode,

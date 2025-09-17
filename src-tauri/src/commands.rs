@@ -2,9 +2,14 @@
 
 use super::my_util;
 use crate::{
-    model::{Music, PlaylistInfo, PlaylistMusic, ToggleMusicPayload, UpdateDetailPayload},
+    model::{
+        CacheAnalysisResult, CachedMusicInfo, Music, PlaylistCacheInfo, PlaylistInfo,
+        PlaylistMusicItem, ToggleMusicPayload, UpdateDetailPayload,
+    },
     music::{self},
+    music_cache,
     my_util::DbPool,
+    playlist::{self},
     updater,
 };
 
@@ -20,10 +25,11 @@ async fn save_music(music_list: Vec<Music>, state: tauri::State<'_, DbPool>) -> 
 
 #[tauri::command]
 async fn update_music_detail(
+    app_handle: AppHandle,
     payload: UpdateDetailPayload,
     state: tauri::State<'_, DbPool>,
 ) -> Result<(), String> {
-    music::update_music_detail(state.inner(), payload)
+    music::update_music_detail(&app_handle, state.inner(), payload)
         .await
         .map_err(|e| e.to_string())
 }
@@ -40,14 +46,14 @@ async fn toggle_music_in_playlist(
 
 #[tauri::command]
 async fn create_playlist(name: String, state: tauri::State<'_, DbPool>) -> Result<i64, String> {
-    music::create_playlist(state.inner(), name)
+    playlist::create_playlist(state.inner(), name)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn delete_playlist(playlist_id: i64, state: tauri::State<'_, DbPool>) -> Result<(), String> {
-    music::delete_playlist(state.inner(), playlist_id)
+    playlist::delete_playlist(state.inner(), playlist_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -58,7 +64,7 @@ async fn rename_playlist(
     new_name: String,
     state: tauri::State<'_, DbPool>,
 ) -> Result<(), String> {
-    music::rename_playlist(state.inner(), playlist_id, new_name)
+    playlist::rename_playlist(state.inner(), playlist_id, new_name)
         .await
         .map_err(|e| e.to_string())
 }
@@ -68,7 +74,7 @@ async fn get_all_playlists(
     song_id: Option<String>,
     state: tauri::State<'_, DbPool>,
 ) -> Result<Vec<PlaylistInfo>, String> {
-    music::get_all_playlists(state.inner(), song_id)
+    playlist::get_all_playlists(state.inner(), song_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -77,8 +83,8 @@ async fn get_all_playlists(
 async fn get_music_by_playlist_id(
     playlist_id: i64,
     state: tauri::State<'_, DbPool>,
-) -> Result<Vec<PlaylistMusic>, String> {
-    music::get_music_by_playlist_id(state.inner(), playlist_id)
+) -> Result<Vec<PlaylistMusicItem>, String> {
+    playlist::get_music_by_playlist_id(state.inner(), playlist_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -140,6 +146,15 @@ pub async fn update_music_cache_path(
         .await
         .map_err(|e| e.to_string())
 }
+#[tauri::command]
+pub async fn update_music_last_play_time(
+    song_id: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    music::update_music_last_play_time(state.inner(), &song_id)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn cache_music_and_get_file_path(
@@ -163,6 +178,61 @@ pub async fn export_music_file(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn get_cache_size(app_handle: AppHandle) -> Result<String, String> {
+    music_cache::get_cache_size(app_handle)
+}
+
+#[tauri::command]
+pub async fn get_non_playlist_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<CacheAnalysisResult, String> {
+    music_cache::get_non_playlist_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn get_old_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<CacheAnalysisResult, String> {
+    music_cache::get_old_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn get_all_playlists_cache_info(
+    pool: tauri::State<'_, DbPool>,
+) -> Result<Vec<PlaylistCacheInfo>, String> {
+    music_cache::get_all_playlists_cache_info(pool.inner()).await
+}
+
+#[tauri::command]
+pub async fn clear_cache_by_ids(
+    app_handle: AppHandle, // [修改] 注入 AppHandle
+    song_ids: Vec<String>,
+    pool: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    // [修改] 将 app_handle 传递给核心函数
+    music_cache::clear_cache_by_ids(&app_handle, pool.inner(), song_ids).await
+}
+
+#[tauri::command]
+pub async fn get_cached_music_for_playlist(
+    playlist_id: i64,
+    pool: tauri::State<'_, DbPool>,
+) -> Result<Vec<CachedMusicInfo>, String> {
+    music_cache::get_cached_music_for_playlist(pool.inner(), playlist_id).await
+}
+
+#[tauri::command]
+pub async fn update_playlist_cover(
+    playlist_id: i64,
+    cover_path: String,
+    state: tauri::State<'_, DbPool>,
+) -> Result<(), String> {
+    playlist::update_playlist_cover(state.inner(), playlist_id, cover_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
         save_music,
@@ -179,7 +249,15 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         ignore_update,
         get_music_list_by_ids,
         update_music_cache_path,
+        update_music_last_play_time,
         cache_music_and_get_file_path,
         export_music_file,
+        get_cache_size,
+        get_non_playlist_cache_info,
+        get_old_cache_info,
+        get_all_playlists_cache_info,
+        clear_cache_by_ids,
+        get_cached_music_for_playlist,
+        update_playlist_cover,
     ]
 }
