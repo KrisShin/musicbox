@@ -22,15 +22,19 @@ const SearchPage: React.FC = () => {
 
   const onSearch = async (keyword: string) => {
     try {
+      messageApi.destroy();
       messageApi.success(`搜索 "${keyword}" 中...`, 1.5);
       await handleSearch(keyword).then(() => {
+        messageApi.destroy();
         messageApi.success(`搜索 "${keyword}" 成功`);
       })
     } catch (error: any) {
       // 在这里捕获 store 抛出的错误，并调用 messageApi
       if (error.message === "404") {
+        messageApi.destroy();
         messageApi.warning("未能找到相关歌曲, 请更换搜索关键词");
       } else {
+        messageApi.destroy();
         messageApi.error(error.message || "搜索时发生未知错误");
       }
     }
@@ -39,6 +43,7 @@ const SearchPage: React.FC = () => {
   const handlePlayFromSearch = (index: number) => {
     // 关键：将整个 musicList 作为播放队列传入
     startPlayback(musicList, index).then(() => {
+      messageApi.destroy();
       messageApi.success(`开始播放 ${musicList[index].title}`);
     }).catch(error => {
       // 可以在这里处理 messageApi 的错误提示

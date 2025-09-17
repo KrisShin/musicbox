@@ -31,13 +31,13 @@ const AddToPlaylistButton = memo(({
             await invoke("toggle_music_in_playlist", { payload });
 
             // 给予用户即时反馈
-            messageApi.success(`“${music.title}” 操作成功!`);
+            messageApi.success(`“${music.title}” 操作成功!`, 1);
         } catch (error) {
             console.error(
                 `操作歌曲 ${music.title} 到歌单 ${playlistId} 失败:`,
                 error
             );
-            messageApi.error("操作失败，请稍后再试");
+            messageApi.error("操作失败，请稍后再试", 1);
         }
     };
 
@@ -55,6 +55,7 @@ const AddToPlaylistButton = memo(({
                 setPlaylists(result);
             } catch (error) {
                 console.error("获取歌单列表失败:", error);
+                messageApi.destroy();
                 messageApi.error("无法加载歌单列表");
                 setOpen(false); // 加载失败时关闭 Popover
             } finally {

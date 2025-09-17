@@ -65,11 +65,53 @@ pub struct PlaylistInfo {
     pub is_in: bool,
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct PlaylistMusic {
-    #[sqlx(flatten)]
-    pub music: Music,
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct PlaylistMusicItem {
+    pub song_id: String,
+    pub title: String,
+    pub artist: String,
+    pub cover_url: Option<String>,
+    pub file_path: Option<String>,
+}
 
-    pub position: i64,
-    pub added_to_list_at: String,
+// [新增] 为缓存分析接口定义返回的数据结构
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CacheAnalysisResult {
+    pub total_size_str: String,
+    pub song_ids: Vec<String>,
+    pub count: usize,
+}
+
+// [新增] 为播放列表缓存信息定义返回的数据结构
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct PlaylistCacheInfo {
+    pub id: i64,
+    pub name: String,
+    pub cover_path: Option<String>,
+    pub cached_song_count: i64,
+    #[sqlx(skip)]
+    #[serde(default)] // 这个字段将在 Rust 中计算
+    pub cached_size_str: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct CachedMusicInfo {
+    // 从 music 表中直接获取的字段
+    pub song_id: String,
+    pub title: String,
+    pub artist: String,
+    pub cover_url: Option<String>,
+    pub file_path: String, // file_path 在这里必须存在
+    pub last_played_at: Option<String>,
+
+    // 在 Rust 中动态计算的字段
+    #[sqlx(skip)] // 告诉 sqlx 不要尝试从数据库映射这个字段
+    #[serde(default)]
+    pub file_size_bytes: u64,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct MusicToDelete {
+    pub song_id: String,
+    pub file_path: String,
 }
