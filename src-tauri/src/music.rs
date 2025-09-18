@@ -202,6 +202,8 @@ pub async fn update_music_detail(
         .push_bind(&payload.song_id);
     let query = builder.build();
     query.execute(pool).await?;
+
+    update_music_last_play_time(&pool, &payload.song_id).await?;
     Ok(())
 }
 
