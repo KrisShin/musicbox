@@ -226,7 +226,7 @@ const CacheManagePage: React.FC = () => {
               </Space>
             </Form.Item>
             <Form.Item name="exclude" valuePropName="checked">
-              <Checkbox>自动清理时排除播放列表中的歌曲</Checkbox>
+              <Checkbox>自动清理时排除歌单中的歌曲</Checkbox>
             </Form.Item>
             <Form.Item name="cleanOld" valuePropName="checked">
               <Checkbox>自动清理超过3个月未播放的缓存</Checkbox>
@@ -249,10 +249,10 @@ const CacheManagePage: React.FC = () => {
                   onClick={() =>
                     handleClear(
                       nonPlaylistInfo?.song_ids || [],
-                      "清理非播放列表缓存",
+                      "清理非歌单缓存",
                       `确定要删除 ${
                         nonPlaylistInfo?.count || 0
-                      } 首未在任何播放列表中的歌曲缓存吗？`,
+                      } 首未在任何歌单中的歌曲缓存吗？`,
                       fetchData
                     )
                   }
@@ -262,7 +262,7 @@ const CacheManagePage: React.FC = () => {
               ]}
             >
               <List.Item.Meta
-                title="清除非播放列表中的缓存"
+                title="清除非歌单中的缓存"
                 description={`可释放 ${
                   nonPlaylistInfo?.total_size_str || "0 B"
                 } (${nonPlaylistInfo?.count || 0} 首)`}
