@@ -196,6 +196,11 @@ pub async fn update_music_detail(
         return Ok(());
     }
 
+    builder
+        .push(separator)
+        .push("last_played_at = ")
+        .push_bind(Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true));
+
     // 4. 完成并执行 SQL 查询
     builder
         .push(" WHERE song_id = ")
@@ -203,7 +208,8 @@ pub async fn update_music_detail(
     let query = builder.build();
     query.execute(pool).await?;
 
-    update_music_last_play_time(&pool, &payload.song_id).await?;
+    // update_music_last_play_time(&pool, &payload.song_id).await?;
+
     Ok(())
 }
 
