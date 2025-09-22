@@ -46,6 +46,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
     handlePrev,
     saveSongWithNotifications,
     cyclePlayMode,
+    setSingleDownloading,
   } = useAppStore();
 
   const messageApi = useGlobalMessage();
@@ -82,6 +83,12 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
   };
 
   const handleDownload = async (music?: Music) => {
+    if (useAppStore.getState().singleDownloading) {
+      messageApi.destroy()
+      messageApi.info('正在下载中, 请稍后重试')
+      return
+    }
+    setSingleDownloading(true)
     if (!music) music = currentMusic;
     try {
       messageApi.success(`开始下载 ${music.title}...`);
@@ -99,6 +106,8 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ audioRef }) => {
       messageApi.destroy();
       messageApi.error(`下载失败: ${error || "未知错误"}`);
       return;
+    } finally {
+      setSingleDownloading(false)
     }
   };
 

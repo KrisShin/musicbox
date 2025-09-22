@@ -30,7 +30,9 @@ const { Search } = Input;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode, saveSongWithNotifications } = useAppStore();
+  const { startPlayback, cyclePlayMode, saveSongWithNotifications,
+    setSingleDownloading, setBatchDownloading
+  } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
@@ -309,9 +311,15 @@ const PlaylistPage: React.FC = () => {
   };
 
   const handleDownload = async (music: Music) => {
+    if (useAppStore.getState().singleDownloading) {
+      messageApi.destroy()
+      messageApi.info('正在下载中, 请稍后重试')
+      return
+    }
+    setSingleDownloading(true)
     try {
       messageApi.success(`开始下载 ${music.title}...`);
-      saveSongWithNotifications([music])
+      await saveSongWithNotifications([music])
         .then(async (_: string) => {
           messageApi.destroy();
           messageApi.success(`${music.title}下载完成`);
@@ -325,6 +333,8 @@ const PlaylistPage: React.FC = () => {
       messageApi.destroy();
       messageApi.error(`下载失败: ${error || "未知错误"}`);
       return;
+    } finally {
+      setSingleDownloading(false)
     }
   };
 
@@ -389,17 +399,23 @@ const PlaylistPage: React.FC = () => {
                 <Button
                   icon={<DownloadOutlined />}
                   type="primary"
-                  onClick={() => {
+                  onClick={async () => {
+                    if (useAppStore.getState().batchDownloading) {
+                      messageApi.destroy()
+                      messageApi.info('正在下载中, 请稍后重试')
+                      return
+                    }
+                    setBatchDownloading(true)
                     messageApi.info(
                       `正在下载 ${selectedPlaylistMusic.length} 首歌曲...`,
-                      10
+                      5
                     );
-                    saveSongWithNotifications(selectedPlaylistMusic).then(
+                    await saveSongWithNotifications(selectedPlaylistMusic).then(
                       () => {
                         messageApi.destroy();
                         messageApi.success(`全部歌曲下载完成`);
                       }
-                    );
+                    ).finally(() => setBatchDownloading(false));
                   }}
                 >
                   下载全部

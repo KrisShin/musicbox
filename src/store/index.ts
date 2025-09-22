@@ -54,6 +54,12 @@ interface AppState {
   currentTime: number;
   duration: number;
 
+  // 下载状态
+  batchDownloading: boolean;
+  singleDownloading: boolean;
+  setBatchDownloading: (isDownloading?: boolean) => void
+  setSingleDownloading: (isDownloading?: boolean) => void
+
   // Actions
   handleSearch: (value: string) => Promise<void>;
   handleDetail: (music: Music) => Promise<Music>;
@@ -89,6 +95,23 @@ export const useAppStore = create<AppState>()(
       isPlaying: false,
       currentTime: 0,
       duration: 0,
+
+      batchDownloading: false,
+      singleDownloading: false,
+      setBatchDownloading: (isDownloading?: boolean) => {
+        if (isDownloading) {
+          set({ batchDownloading: isDownloading })
+          return
+        }
+        set({ batchDownloading: !get().batchDownloading })
+      },
+      setSingleDownloading: (isDownloading?: boolean) => {
+        if (isDownloading) {
+          set({ singleDownloading: isDownloading })
+          return
+        }
+        set({ singleDownloading: !get().singleDownloading })
+      },
 
       // --- Actions ---
       handleSearch: async (value) => {
@@ -286,7 +309,7 @@ export const useAppStore = create<AppState>()(
           if (hasPermission) {
             sendNotification({
               title: "缓存完成 🎉",
-              body: musicList.length===1?`歌曲《${musicList[0].title}》已成功保存到本地！`:'所有歌曲已成功保存到本地！',
+              body: musicList.length === 1 ? `歌曲《${musicList[0].title}》已成功保存到本地！` : '所有歌曲已成功保存到本地！',
             });
           }
           return file_path;
@@ -315,6 +338,8 @@ export const useAppStore = create<AppState>()(
         currentKeyword: state.currentKeyword,
         playQueue: state.playQueue,
         playMode: state.playMode,
+        batchDownloading: state.batchDownloading,
+        singleDownloading: state.singleDownloading,
       }),
     }
   )
