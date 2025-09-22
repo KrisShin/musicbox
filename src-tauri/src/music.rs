@@ -208,8 +208,6 @@ pub async fn update_music_detail(
     let query = builder.build();
     query.execute(pool).await?;
 
-    // update_music_last_play_time(&pool, &payload.song_id).await?;
-
     Ok(())
 }
 
@@ -538,10 +536,26 @@ pub async fn export_music_file(
 
     let mut success_count = 0;
     let mut fail_count = 0;
-    let mut skipped_count = 0;
+    let mut skipped_uncached_count = 0; // 原 skipped_count，改名以示区分
+    let mut skipped_identical_count = 0; // 新增：因文件已存在且内容一致而跳过的计数器
 
     for music in music_list {
-        if let Some(source_path) = music.file_path.filter(|p| !p.is_empty()) {
+        if let Some(source_path_str) = music.file_path.filter(|p| !p.is_empty()) {
+            let source_path = PathBuf::from(&source_path_str);
+
+            let source_metadata = match tokio::fs::metadata(&source_path).await {
+                Ok(meta) => meta,
+                Err(e) => {
+                    println!(
+                        "无法读取源文件 '{}' 的元数据: {}, 跳过导出。",
+                        source_path.display(),
+                        e
+                    );
+                    fail_count += 1;
+                    continue; // 继续下一首歌
+                }
+            };
+
             let sanitized_title = music
                 .title
                 .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
@@ -549,33 +563,60 @@ pub async fn export_music_file(
                 .artist
                 .replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
 
-            let mut base_filename = match name_format.as_str() {
+            let mut base_filename_stem = match name_format.as_str() {
                 "artist_title" => format!("{} - {}", sanitized_artist, sanitized_title),
-                _ => format!("{} - {}", sanitized_title, sanitized_artist), // 默认 "title_artist"
+                _ => format!("{} - {}", sanitized_title, sanitized_artist),
             };
-
             if remove_spaces {
-                base_filename = base_filename.replace(" ", "");
+                base_filename_stem = base_filename_stem.replace(" ", "");
             }
-            base_filename.push_str(".mp3");
-            let mut final_path = download_path.join(&base_filename);
-            let mut counter = 1;
+            let base_filename = format!("{}.mp3", base_filename_stem);
 
-            // [优化] 检查文件是否存在时，使用 tokio::fs::metadata 来避免阻塞
-            while tokio::fs::metadata(&final_path).await.is_ok() {
-                let new_filename = format!(
-                    "{} - {} ({}).mp3",
-                    sanitized_title, sanitized_artist, counter
-                );
-                final_path = download_path.join(new_filename);
-                counter += 1;
+            let initial_dest_path = download_path.join(&base_filename);
+
+            let final_path: PathBuf;
+
+            if let Ok(dest_metadata) = tokio::fs::metadata(&initial_dest_path).await {
+                // 目标文件已存在，进行元数据比较
+                let source_size = source_metadata.len();
+                let dest_size = dest_metadata.len();
+                let source_mod_time = source_metadata.modified().ok();
+                let dest_mod_time = dest_metadata.modified().ok();
+
+                if source_size == dest_size
+                    && source_mod_time.is_some()
+                    && source_mod_time == dest_mod_time
+                {
+                    // 文件大小和修改时间都一致，判定为相同文件，跳过
+                    // println!(
+                    //     "文件 '{}' 已存在且内容一致，跳过。",
+                    //     initial_dest_path.display()
+                    // );
+                    skipped_identical_count += 1;
+                    continue; // 直接进入下一首歌曲的循环
+                } else {
+                    // 文件名冲突，但内容不一致，启动数字后缀逻辑
+                    let mut counter = 1;
+                    loop {
+                        let new_filename = format!("{} ({}).mp3", base_filename_stem, counter);
+                        let next_path = download_path.join(&new_filename);
+                        if tokio::fs::metadata(&next_path).await.is_err() {
+                            final_path = next_path;
+                            break; // 找到可用路径，跳出循环
+                        }
+                        counter += 1;
+                    }
+                }
+            } else {
+                // 目标文件不存在，直接使用初始路径
+                final_path = initial_dest_path;
             }
 
             // [优化] 使用异步文件复制 tokio::fs::copy，避免阻塞线程
             match tokio::fs::copy(&source_path, &final_path).await {
                 Ok(_) => success_count += 1,
                 Err(e) => {
-                    println!("复制文件 {} 失败: {}", source_path, e);
+                    println!("复制文件 {} 失败: {}", source_path.display(), e);
                     fail_count += 1;
                 }
             }
@@ -584,27 +625,33 @@ pub async fn export_music_file(
                 "歌曲 {} ({}) 未缓存，跳过导出。",
                 music.title, music.song_id
             );
-            skipped_count += 1;
+            skipped_uncached_count += 1;
         }
     }
 
-    if success_count > 0 {
-        // 为安卓用户提供更明确的路径提示
+    let total_skipped = skipped_uncached_count + skipped_identical_count;
+    let final_summary = format!(
+        "总共 {} 首，成功 {} 首，失败 {} 首，跳过 {} 首 (未缓存: {}, 文件已存在: {})。",
+        total,
+        success_count,
+        fail_count,
+        total_skipped,
+        skipped_uncached_count,
+        skipped_identical_count
+    );
+
+    if fail_count == 0 {
         #[cfg(target_os = "android")]
         let final_message = format!(
-            "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。文件已保存至手机 Download/MusicBox 文件夹。",
-            total, success_count, fail_count, skipped_count
+            "导出完成！{} 文件已保存至手机 Download/{} 文件夹。",
+            final_summary,
+            sub_path.replace("..", "")
         );
         #[cfg(not(target_os = "android"))]
-        let final_message = format!(
-            "导出完成！总共 {} 首，成功 {} 首，失败 {} 首，未缓存跳过 {} 首。",
-            total, success_count, fail_count, skipped_count
-        );
+        let final_message = format!("导出完成！{}", final_summary);
+
         Ok(final_message)
     } else {
-        Err(format!(
-            "导出失败。总共 {} 首，失败 {} 首，未缓存跳过 {} 首。",
-            total, fail_count, skipped_count
-        ))
+        Err(format!("导出失败。{}", final_summary))
     }
 }
