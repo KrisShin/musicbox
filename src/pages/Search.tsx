@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { Input, Spin, Empty, Button, Flex, TableProps, Typography, Avatar, Table } from 'antd';
+import { Input, Spin, Empty, Button, Flex, TableProps, Typography, Table } from 'antd';
 import { primaryThemeColor } from '../main';
 import { useAppStore } from '../store';
 import { useGlobalMessage } from '../components/MessageHook';
 import { DownloadOutlined } from "@ant-design/icons";
 import { Music } from '../types';
-import { buildCoverUrl } from '../util';
 import AddToPlaylistButton from '../components/Add2Playlist';
 
 const { Search } = Input;

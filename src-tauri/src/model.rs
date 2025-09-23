@@ -88,10 +88,14 @@ pub struct PlaylistCacheInfo {
     pub id: i64,
     pub name: String,
     pub cover_path: Option<String>,
-    pub cached_song_count: i64,
-    #[sqlx(skip)]
-    #[serde(default)] // 这个字段将在 Rust 中计算
+    pub song_count: i64,
+    
+    // 这个字段仍然在 Rust 中计算，保持不变
+    #[sqlx(skip)] 
+    #[serde(default)] 
     pub cached_size_str: String,
+    
+    pub cached_song_count: i64, 
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]

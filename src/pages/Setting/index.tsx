@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { checkForUpdates } from "../../util/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { primaryThemeColor } from "../../main";
+import { getVersion } from "@tauri-apps/api/app";
 
 const SettingPage: React.FC = () => {
   const iconSize = "1.125rem";
@@ -28,6 +29,7 @@ const SettingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [downloadSettingOpen, setDownloadSettingOpen] = useState(false);
   const [cacheSize, setCacheSize] = useState("计算中...");
+  const [appVersion, setAppVersion] = useState("");
 
   const settings = [
     {
@@ -104,6 +106,7 @@ const SettingPage: React.FC = () => {
         />
       ),
       desc: "关于MusicBox的一些信息",
+      extra: `v${appVersion}`
     },
     {
       tag: "reset",
@@ -234,6 +237,13 @@ const SettingPage: React.FC = () => {
         console.error(err);
         setCacheSize("获取失败");
       });
+
+    const fetchVersion = async () => {
+      const version = await getVersion();
+      setAppVersion(version);
+    };
+
+    fetchVersion().catch(console.error);
   }, []);
 
   return (
@@ -248,10 +258,10 @@ const SettingPage: React.FC = () => {
             actions={
               item.extra
                 ? [
-                    <span key="1" style={{ fontSize: "0.75rem", color: "#888" }}>
-                      {item.extra}
-                    </span>,
-                  ]
+                  <span key="1" style={{ fontSize: "0.75rem", color: "#888" }}>
+                    {item.extra}
+                  </span>,
+                ]
                 : []
             }
           >
