@@ -10,6 +10,7 @@ import {
   Input,
   TableProps,
   Table,
+  Popconfirm,
 } from "antd";
 import {
   DownloadOutlined,
@@ -84,6 +85,7 @@ const PlaylistPage: React.FC = () => {
       setPlaylists(result);
       // 如果当前没有选中的歌单，并且获取到了歌单，则默认选中第一个
       if (currentPlaylistId === null && result.length > 0) {
+        console.log(111)
         setCurrentPlaylistId(result[0].id);
       }
       return result
@@ -278,7 +280,7 @@ const PlaylistPage: React.FC = () => {
     try {
       await invoke("toggle_music_in_playlist", {
         payload: {
-          playlistId: selectedPlaylist.id,
+          playlist_id: selectedPlaylist.id,
           song_ids: [music.song_id],
         },
       });
@@ -340,9 +342,19 @@ const PlaylistPage: React.FC = () => {
   const handleCreatePlaylist = async () => {
     await invoke('create_playlist').then(() => {
       messageApi.destroy()
-      messageApi.success(`新建播放列表完成`)
+      messageApi.success(`新建歌单完成`)
       fetchPlaylists().then((result: any) => {
         setCurrentPlaylistId(result.at(-1).id)
+        fetchPlaylistMusic()
+      })
+    })
+  }
+  const handleDeletePlaylist = async (p_id: number) => {
+    await invoke('delete_playlist', { playlistId: p_id }).then(() => {
+      messageApi.destroy()
+      messageApi.success(`删除歌单完成`)
+      fetchPlaylists().then((result: any) => {
+        setCurrentPlaylistId(p_id === currentPlaylistId ? result.at(0).id : currentPlaylistId)
         fetchPlaylistMusic()
       })
     })
@@ -390,7 +402,7 @@ const PlaylistPage: React.FC = () => {
                   </Text>
                 </Flex>
                 <PlusOutlined className="create-playlist-button" style={{ color: primaryThemeColor }} onClick={() => {
-                  if (playlists.length < 9) {
+                  if (playlists.length < 8) {
                     handleCreatePlaylist()
                     return
                   }
@@ -488,12 +500,13 @@ const PlaylistPage: React.FC = () => {
                 setCurrentPlaylistId(p.id);
                 setIsSelectorVisible(false);
               }}
+              actions={[<DeleteOutlined style={{ color: "red", padding: "0.8rem" }} onClick={(e) => { e?.stopPropagation(); handleDeletePlaylist(p.id); }} />]}
             >
               <List.Item.Meta
                 avatar={
                   <Avatar
                     shape="square"
-                    src={p?.cover_path || "/default_cover.png"}
+                    src={p?.cover_path || "/icon.png"}
                   />
                 }
                 title={p.name}

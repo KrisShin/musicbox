@@ -19,11 +19,14 @@ pub async fn create_playlist(pool: &DbPool) -> Result<i64, sqlx::Error> {
 }
 
 pub async fn delete_playlist(pool: &DbPool, playlist_id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM playlist_music WHERE playlist_id = ?")
+        .bind(playlist_id)
+        .execute(pool)
+        .await?;
     sqlx::query("DELETE FROM playlist WHERE id = ?")
         .bind(playlist_id)
         .execute(pool)
         .await?;
-
     Ok(())
 }
 
@@ -68,7 +71,6 @@ pub async fn get_all_playlists(
         .bind(song_id) // 3. 绑定可选参数。如果 song_id 是 None，sqlx 会将其作为 NULL 绑定
         .fetch_all(pool)
         .await?;
-
     Ok(playlists)
 }
 
@@ -112,6 +114,5 @@ pub async fn update_playlist_cover(
         .bind(playlist_id)
         .execute(pool)
         .await?;
-
     Ok(())
 }

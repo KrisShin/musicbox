@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.1.6",
-  "releaseNotes": "Release 20250925 \n1. [优化]下载文件重复命名逻辑 \n2. [优化]重复触发下载阻塞 \n15. [修复]了部分已知bug",
+  "version": "2.1.10",
+  "releaseNotes": "Release 20250925 \n1. [优化]下载文件重复命名逻辑 \n2. [优化]重复触发下载阻塞 \n3. [优化]下载阻塞逻辑判断 \n4. 15. [修复]了部分已知bug",
   "type": "module",
   "scripts": {
     "dev": "vite",
