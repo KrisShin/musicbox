@@ -3,9 +3,15 @@ use crate::{
     my_util::DbPool,
 };
 
-pub async fn create_playlist(pool: &DbPool, name: String) -> Result<i64, sqlx::Error> {
+pub async fn create_playlist(pool: &DbPool) -> Result<i64, sqlx::Error> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM playlist")
+        .fetch_one(pool)
+        .await?;
+
+    let new_name = format!("我的歌单{}", count + 1);
+
     let result = sqlx::query("INSERT INTO playlist (name) VALUES (?)")
-        .bind(name)
+        .bind(new_name)
         .execute(pool)
         .await?;
 

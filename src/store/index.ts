@@ -54,6 +54,10 @@ interface AppState {
   currentTime: number;
   duration: number;
 
+  // 歌单状态
+  currentPlaylistId?: number | null;
+  setCurrentPlaylistId: (playlistId: number) => void;
+
   // 下载状态
   downloadingIds: Set<string>;
   addDownloadingId: (id: string) => void;
@@ -94,6 +98,8 @@ export const useAppStore = create<AppState>()(
       isPlaying: false,
       currentTime: 0,
       duration: 0,
+      currentPlaylistId: null,
+      setCurrentPlaylistId: (playlistId?: number | null) => { set({ currentPlaylistId: playlistId }) },
 
       downloadingIds: new Set(), // <-- 初始化为空 Set
       addDownloadingId: (id) => {

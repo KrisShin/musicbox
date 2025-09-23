@@ -20,6 +20,8 @@ const SearchPage: React.FC = () => {
 
   const messageApi = useGlobalMessage();
 
+  
+
   const onSearch = async (keyword: string) => {
     try {
       messageApi.destroy();

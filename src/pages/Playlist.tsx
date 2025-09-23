@@ -32,13 +32,11 @@ const { Search } = Input;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode, saveSongWithNotifications, addDownloadingId, removeDownloadingId } = useAppStore();
+  const { startPlayback, cyclePlayMode, saveSongWithNotifications, addDownloadingId, removeDownloadingId, currentPlaylistId, setCurrentPlaylistId } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(
-    null
-  );
+
   const [selectedPlaylistMusic, setSelectedPlaylistMusic] = useState<
     PlaylistMusic[]
   >([]);
@@ -85,8 +83,8 @@ const PlaylistPage: React.FC = () => {
       const result: PlaylistInfo[] = await invoke("get_all_playlists");
       setPlaylists(result);
       // 如果当前没有选中的歌单，并且获取到了歌单，则默认选中第一个
-      if (selectedPlaylistId === null && result.length > 0) {
-        setSelectedPlaylistId(result[0].id);
+      if (currentPlaylistId === null && result.length > 0) {
+        setCurrentPlaylistId(result[0].id);
       }
       return result
     } catch (error) {
@@ -95,15 +93,15 @@ const PlaylistPage: React.FC = () => {
     } finally {
       setLoadingPlaylists(false);
     }
-  }, [messageApi, selectedPlaylistId]); // 依赖 selectedPlaylistId 以避免重复设置
+  }, [messageApi, currentPlaylistId]); // 依赖 selectedPlaylistId 以避免重复设置
 
   // 函数2: 获取指定歌单的音乐 (保持独立)
   const fetchPlaylistMusic = useCallback(async () => {
-    if (selectedPlaylistId === null) return; // 防御性编程
+    if (currentPlaylistId === null) return; // 防御性编程
     setLoadingMusic(true);
     try {
       const result: PlaylistMusic[] = await invoke("get_music_by_playlist_id", {
-        playlistId: selectedPlaylistId,
+        playlistId: currentPlaylistId,
       });
       setSelectedPlaylistMusic(result);
     } catch (error) {
@@ -112,7 +110,7 @@ const PlaylistPage: React.FC = () => {
     } finally {
       setLoadingMusic(false);
     }
-  }, [selectedPlaylistId, messageApi]);
+  }, [currentPlaylistId, messageApi]);
 
   const columns: TableProps<PlaylistMusic>["columns"] = [
     {
@@ -181,11 +179,11 @@ const PlaylistPage: React.FC = () => {
     },
   ];
   const handleConfirmCoverChange = async () => {
-    if (!selectedPlaylistId || !selectedCoverUrl) return;
+    if (!currentPlaylistId || !selectedCoverUrl) return;
 
     try {
       await invoke("update_playlist_cover", {
-        playlistId: selectedPlaylistId,
+        playlistId: currentPlaylistId,
         coverPath: selectedCoverUrl,
       });
       messageApi.success("封面已更新！");
@@ -198,18 +196,18 @@ const PlaylistPage: React.FC = () => {
   };
   const refreshData = useCallback(() => {
     fetchPlaylists();
-    if (selectedPlaylistId) {
+    if (currentPlaylistId) {
       fetchPlaylistMusic();
     }
-  }, [fetchPlaylists, fetchPlaylistMusic, selectedPlaylistId]);
+  }, [fetchPlaylists, fetchPlaylistMusic, currentPlaylistId]);
   // 1. 组件加载时，获取所有歌单
   useEffect(() => {
     fetchPlaylists();
   }, []); // 空依赖数组确保只运行一次
 
-  // Effect 2: 仅在 selectedPlaylistId 变化时获取该歌单的歌曲
+  // Effect 2: 仅在 currentPlaylistId 变化时获取该歌单的歌曲
   useEffect(() => {
-    if (selectedPlaylistId !== null) {
+    if (currentPlaylistId !== null) {
       fetchPlaylistMusic();
     }
     const calculateTableHeight = () => {
@@ -235,13 +233,13 @@ const PlaylistPage: React.FC = () => {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [selectedPlaylistId, fetchPlaylistMusic]);
+  }, [currentPlaylistId, fetchPlaylistMusic]);
 
 
   // 3. 使用 useMemo 提高性能，避免每次渲染都重新查找
   const selectedPlaylist = useMemo(() => {
-    return playlists.find((p) => p.id === selectedPlaylistId);
-  }, [playlists, selectedPlaylistId]);
+    return playlists.find((p) => p.id === currentPlaylistId);
+  }, [playlists, currentPlaylistId]);
 
   // 4. 处理歌单重命名
   const handleRenamePlaylist = async (newName: string) => {
@@ -344,7 +342,7 @@ const PlaylistPage: React.FC = () => {
       messageApi.destroy()
       messageApi.success(`新建播放列表完成`)
       fetchPlaylists().then((result: any) => {
-        setSelectedPlaylistId(result.at(-1).id)
+        setCurrentPlaylistId(result.at(-1).id)
         fetchPlaylistMusic()
       })
     })
@@ -487,7 +485,7 @@ const PlaylistPage: React.FC = () => {
             <List.Item
               className="playlist-selector-item"
               onClick={() => {
-                setSelectedPlaylistId(p.id);
+                setCurrentPlaylistId(p.id);
                 setIsSelectorVisible(false);
               }}
             >

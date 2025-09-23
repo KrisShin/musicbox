@@ -45,8 +45,8 @@ async fn toggle_music_in_playlist(
 }
 
 #[tauri::command]
-async fn create_playlist(name: String, state: tauri::State<'_, DbPool>) -> Result<i64, String> {
-    playlist::create_playlist(state.inner(), name)
+async fn create_playlist(state: tauri::State<'_, DbPool>) -> Result<i64, String> {
+    playlist::create_playlist(state.inner())
         .await
         .map_err(|e| e.to_string())
 }
