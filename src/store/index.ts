@@ -55,10 +55,9 @@ interface AppState {
   duration: number;
 
   // 下载状态
-  batchDownloading: boolean;
-  singleDownloading: boolean;
-  setBatchDownloading: (isDownloading?: boolean) => void
-  setSingleDownloading: (isDownloading?: boolean) => void
+  downloadingIds: Set<string>;
+  addDownloadingId: (id: string) => void;
+  removeDownloadingId: (id: string) => void;
 
   // Actions
   handleSearch: (value: string) => Promise<void>;
@@ -96,21 +95,18 @@ export const useAppStore = create<AppState>()(
       currentTime: 0,
       duration: 0,
 
-      batchDownloading: false,
-      singleDownloading: false,
-      setBatchDownloading: (isDownloading?: boolean) => {
-        if (isDownloading) {
-          set({ batchDownloading: isDownloading })
-          return
-        }
-        set({ batchDownloading: !get().batchDownloading })
+      downloadingIds: new Set(), // <-- 初始化为空 Set
+      addDownloadingId: (id) => {
+        set((state) => ({
+          downloadingIds: new Set(state.downloadingIds).add(id),
+        }));
       },
-      setSingleDownloading: (isDownloading?: boolean) => {
-        if (isDownloading) {
-          set({ singleDownloading: isDownloading })
-          return
-        }
-        set({ singleDownloading: !get().singleDownloading })
+      removeDownloadingId: (id) => {
+        set((state) => {
+          const newSet = new Set(state.downloadingIds);
+          newSet.delete(id); // <-- 使用 Set 的 delete 方法
+          return { downloadingIds: newSet };
+        });
       },
 
       // --- Actions ---
@@ -328,6 +324,7 @@ export const useAppStore = create<AppState>()(
         }
       },
     }),
+
     {
       name: "frontend-cache", // [核心修复] persist 中间件会自动使用 createJSONStorage 来包装我们提供的原始 tauriStorage // 这解决了所有的类型冲突
       storage: createJSONStorage(() => tauriStorage), // [关键] partialize 保持不变
@@ -338,8 +335,6 @@ export const useAppStore = create<AppState>()(
         currentKeyword: state.currentKeyword,
         playQueue: state.playQueue,
         playMode: state.playMode,
-        batchDownloading: state.batchDownloading,
-        singleDownloading: state.singleDownloading,
       }),
     }
   )

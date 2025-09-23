@@ -17,6 +17,7 @@ import {
   PlaySquareOutlined,
   DeleteOutlined,
   CaretDownOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
@@ -24,15 +25,14 @@ import type { PlaylistInfo, Music, PlaylistMusic } from "../types";
 import "./Playlist.css"; // 我们将为它创建专属的 CSS
 import { useGlobalMessage } from "../components/MessageHook";
 import { buildCoverUrl } from "../util";
+import { primaryThemeColor } from "../main";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode, saveSongWithNotifications,
-    setSingleDownloading, setBatchDownloading
-  } = useAppStore();
+  const { startPlayback, cyclePlayMode, saveSongWithNotifications, addDownloadingId, removeDownloadingId } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
@@ -88,6 +88,7 @@ const PlaylistPage: React.FC = () => {
       if (selectedPlaylistId === null && result.length > 0) {
         setSelectedPlaylistId(result[0].id);
       }
+      return result
     } catch (error) {
       messageApi.error("加载歌单列表失败");
       console.error(error);
@@ -311,12 +312,12 @@ const PlaylistPage: React.FC = () => {
   };
 
   const handleDownload = async (music: Music) => {
-    if (useAppStore.getState().singleDownloading) {
+    if (useAppStore.getState().downloadingIds.has(music.song_id)) {
       messageApi.destroy()
       messageApi.info('正在下载中, 请稍后重试')
       return
     }
-    setSingleDownloading(true)
+    addDownloadingId(music.song_id)
     try {
       messageApi.success(`开始下载 ${music.title}...`);
       await saveSongWithNotifications([music])
@@ -334,11 +335,20 @@ const PlaylistPage: React.FC = () => {
       messageApi.error(`下载失败: ${error || "未知错误"}`);
       return;
     } finally {
-      setSingleDownloading(false)
+      removeDownloadingId(music.song_id)
     }
   };
 
-  // --- 渲染 ---
+  const handleCreatePlaylist = async () => {
+    await invoke('create_playlist').then(() => {
+      messageApi.destroy()
+      messageApi.success(`新建播放列表完成`)
+      fetchPlaylists().then((result: any) => {
+        setSelectedPlaylistId(result.at(-1).id)
+        fetchPlaylistMusic()
+      })
+    })
+  }
 
   return (
     <Flex vertical className="playlist-page-container" ref={containerRef}>
@@ -381,6 +391,14 @@ const PlaylistPage: React.FC = () => {
                     {new Date(selectedPlaylist.updated_at).toLocaleDateString()}
                   </Text>
                 </Flex>
+                <PlusOutlined className="create-playlist-button" style={{ color: primaryThemeColor }} onClick={() => {
+                  if (playlists.length < 9) {
+                    handleCreatePlaylist()
+                    return
+                  }
+                  messageApi.destroy()
+                  messageApi.warning("最多只支持8个歌单")
+                }} />
               </Flex>
 
               <Flex gap="middle" className="header-actions">
@@ -400,12 +418,9 @@ const PlaylistPage: React.FC = () => {
                   icon={<DownloadOutlined />}
                   type="primary"
                   onClick={async () => {
-                    if (useAppStore.getState().batchDownloading) {
-                      messageApi.destroy()
-                      messageApi.info('正在下载中, 请稍后重试')
-                      return
-                    }
-                    setBatchDownloading(true)
+                    selectedPlaylistMusic.map((music: Music) => {
+                      addDownloadingId(music.song_id)
+                    })
                     messageApi.info(
                       `正在下载 ${selectedPlaylistMusic.length} 首歌曲...`,
                       5
@@ -415,7 +430,9 @@ const PlaylistPage: React.FC = () => {
                         messageApi.destroy();
                         messageApi.success(`全部歌曲下载完成`);
                       }
-                    ).finally(() => setBatchDownloading(false));
+                    ).finally(() => selectedPlaylistMusic.map((music: Music) => {
+                      removeDownloadingId(music.song_id)
+                    }));
                   }}
                 >
                   下载全部
@@ -516,7 +533,7 @@ const PlaylistPage: React.FC = () => {
         ]}
         width={600}
       >
-        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
+        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "0.625rem" }}>
           <List
             grid={{ gutter: 16, xs: 3, sm: 4, md: 5, lg: 6 }}
             dataSource={uniqueCoverUrls} // 过滤掉没有封面的歌曲
