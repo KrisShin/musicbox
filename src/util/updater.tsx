@@ -88,7 +88,7 @@ export const checkForUpdates = async ({ force = false, messageApi, modalApi }: {
           </div>
         ),
         footer: (
-          <Flex justify='end' gap="small" style={{ marginTop: '16px' }}>
+          <Flex justify='end' gap="small" style={{ marginTop: '1rem' }}>
             <Button type='text' onClick={handleIgnoreVersion}>忽略此版本</Button>
             <Button onClick={handleRemindLater}>下次再说</Button>
             <Button type="primary" onClick={handleGoNow}>

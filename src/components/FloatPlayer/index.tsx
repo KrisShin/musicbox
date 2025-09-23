@@ -63,11 +63,11 @@ const FloatPlayer: React.FC<FloatPlayerProps> = ({
         <div className="player-icon-overlay">
           {isPlaying ? (
             <PauseCircleFilled
-              style={{ fontSize: "25px", color: "rgba(255, 255, 255, 0.7)" }}
+              style={{ fontSize: "1.5625rem", color: "rgba(255, 255, 255, 0.7)" }}
             />
           ) : (
             <PlayCircleFilled
-              style={{ fontSize: "25px", color: "rgba(255, 255, 255, 0.7)" }}
+              style={{ fontSize: "1.5625rem", color: "rgba(255, 255, 255, 0.7)" }}
             />
           )}
         </div>

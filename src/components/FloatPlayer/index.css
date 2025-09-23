@@ -12,20 +12,20 @@
 /* 基础容器样式 */
 .floating-player-container {
   position: fixed;
-  bottom: 80px;
-  left: 15px; /* 展开时的位置 */
+  bottom: 5rem;
+  left: 1rem; /* 展开时的位置 */
   z-index: 1000;
-  min-width: 50px;
-  max-width: 60px;
-  padding: 4px;
+  min-width: 3.125rem;
+  max-width: 3.75rem;
+  padding: 0.25rem;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.125rem;
   background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(0.625rem);
+  -webkit-backdrop-filter: blur(0.625rem);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
 
   /* [核心修改] 使用 transform 进行动画，性能更好 */
   transform: translateX(0);
@@ -38,7 +38,7 @@
        向左移 45px，意味着容器的右边缘现在位于 30px 的位置，
        这使得附着在其右侧的“把手”按钮可以悬停在屏幕边缘。
     */
-  transform: translateX(-75px);
+  transform: translateX(-4.75rem);
 }
 
 /* [新增] 当收起时，隐藏图标和滚动文字 */
@@ -57,17 +57,17 @@
   left: 100%;
   transform: translateY(-50%);
 
-  width: 18px;
-  height: 30px;
+  width: 1.125rem;
+  height: 1.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
 
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(5px);
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
-  box-shadow: 4px 2px 8px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(0.25rem);
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+  box-shadow: 0.25rem 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
   cursor: pointer;
   color: #555;
   transition: color 0.2s ease;
@@ -77,8 +77,8 @@
 /* [新增] 可交互的封面区域 */
 .cover-section-interactive {
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 3.125rem;
+  height: 3.125rem;
   cursor: pointer;
   /* 明确这是可点击的 */
   border-radius: 50%;
@@ -136,7 +136,7 @@
 
   /* 应用动画：动画名 持续时间 线性无限循环 */
   animation: scroll-text 14s linear infinite;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: #555;
 }
 

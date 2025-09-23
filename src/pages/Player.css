@@ -14,7 +14,7 @@
     background-size: cover;
     background-position: center;
     opacity: 0.6;
-    filter: blur(10px);
+    filter: blur(0.625rem);
     z-index: 1;
 }
 
@@ -36,7 +36,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 24px;
+    padding: 1.5rem;
     color: #fff;
 }
 
@@ -48,13 +48,13 @@
     flex-grow: 1;
     /* 让歌词区域占据所有剩余空间 */
     overflow: hidden;
-    margin: 20px 0;
+    margin: 1.25rem 0;
 }
 
 .time-text {
     color: rgba(88, 88, 88, 0.8);
-    font-size: 12px;
-    min-width: 40px;
+    font-size: 0.75rem;
+    min-width: 2.5rem;
     text-align: center;
 }
 
@@ -64,19 +64,19 @@
 }
 
 .controls .ant-btn .control-icon-secondary {
-    font-size: 22px !important;
+    font-size: 1.375rem !important;
     /* [关键] 添加 !important 作为最后的保险 */
     color: #F08080;
 }
 
 /* 常规控制按钮 (上一首、下一首) */
 .controls .ant-btn .control-icon {
-    font-size: 28px !important;
+    font-size: 1.75rem !important;
     color: #F08080;
 }
 
 /* 主要控制按钮 (播放/暂停) */
 .controls .ant-btn .control-icon-main {
-    font-size: 32px !important;
+    font-size: 2rem !important;
     color: #F08080;
 }

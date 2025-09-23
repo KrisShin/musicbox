@@ -58,7 +58,7 @@ const SearchPage: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: "5px", background: '#fff5f5' }}>
+      <div style={{ padding: "0.3125rem", background: '#fff5f5' }}>
         <Search
           placeholder="输入歌曲名、歌手..."
           enterButton="搜索"
@@ -71,7 +71,6 @@ const SearchPage: React.FC = () => {
         style={{
           background: "#fff",
           borderRadius: 8,
-          maxWidth: "800px",
           margin: "0 auto",
           transition: "padding-bottom 0.3s ease-in-out",
         }}
@@ -79,7 +78,7 @@ const SearchPage: React.FC = () => {
         <Spin spinning={loading && musicList.length === 0} tip="正在玩命搜索中...">
           {musicList.length > 0 ? (
             <List
-              style={{ padding: "8px" }}
+              style={{ padding: "0.5rem" }}
               dataSource={musicList}
               renderItem={(item, index) => (
                 <MusicListItem
@@ -94,7 +93,7 @@ const SearchPage: React.FC = () => {
             searched && <Empty description="未能找到相关歌曲，换个关键词试试？" />
           )}
           {hasMore && (
-            <Flex justify="center" style={{ padding: '5px 0' }}>
+            <Flex justify="center" style={{ padding: '0.3125rem 0' }}>
               <Button
                 type="primary"
                 loading={loading}

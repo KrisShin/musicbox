@@ -16,12 +16,12 @@ const AboutPage: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <ArrowLeftOutlined
                             onClick={() => navigate(-1)}
-                            style={{ marginRight: '16px', cursor: 'pointer', fontSize: '16px', color: primaryThemeColor }}
+                            style={{ marginRight: '1rem', cursor: 'pointer', fontSize: '1rem', color: primaryThemeColor }}
                         />
                         <span>关于 MusicBox</span>
                     </div>
                 }>
-                <div style={{ textAlign: 'center', marginBottom: '0px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '0' }}>
                     <Avatar size={128} src="/icon.png" />
                     <Title level={2}>MusicBox</Title>
                     <Paragraph>基于Tauri V2构建的多平台音乐播放器</Paragraph>
@@ -52,7 +52,7 @@ const AboutPage: React.FC = () => {
                     <Paragraph>
                         如果你对这个项目感兴趣, 欢迎访问我们的GitHub仓库, 并给我们一个Star!
                     </Paragraph>
-                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                    <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
                         <Button
                             type="primary"
                             icon={<GithubOutlined />}

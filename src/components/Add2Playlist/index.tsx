@@ -82,7 +82,7 @@ const AddToPlaylistButton = memo(({
                     style={{
                         display: "flex",
                         justifyContent: "center",
-                        padding: "20px",
+                        padding: "1.25rem",
                     }}
                 >
                     <Spin />
@@ -105,7 +105,7 @@ const AddToPlaylistButton = memo(({
                         >
                             <Flex align="center">
                                 <Avatar size={22} shape="square" src={`${playlist?.cover_path}`} />
-                                <Text style={{ fontSize: "14px" }}>{playlist.name}({playlist.song_count})</Text>
+                                <Text style={{ fontSize: "0.9rem" }}>{playlist.name}({playlist.song_count})</Text>
                             </Flex>
                         </List.Item>
                     )}

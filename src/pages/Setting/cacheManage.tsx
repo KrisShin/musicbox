@@ -172,16 +172,16 @@ const CacheManagePage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <Flex vertical gap="16px">
+      <Flex vertical gap="1rem">
         <Card
           title={
             <Flex align="center">
               <ArrowLeftOutlined
                 onClick={() => navigate(-1)}
                 style={{
-                  marginRight: "16px",
+                  marginRight: "1rem",
                   color: primaryThemeColor,
-                  fontSize: "16px",
+                  fontSize: "1rem",
                 }}
               />
               <span>缓存管理</span>
@@ -215,7 +215,7 @@ const CacheManagePage: React.FC = () => {
                     min={0}
                     max={20}
                     step={1}
-                    style={{ width: "250px" }}
+                    style={{ width: "15.625rem" }}
                   />
                 </Form.Item>
                 <Text>

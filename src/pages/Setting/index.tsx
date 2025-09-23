@@ -19,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { primaryThemeColor } from "../../main";
 
 const SettingPage: React.FC = () => {
-  const iconSize = "18px";
+  const iconSize = "1.125rem";
 
   const messageApi = useGlobalMessage();
   const modalApi = useGlobalModal();
@@ -248,7 +248,7 @@ const SettingPage: React.FC = () => {
             actions={
               item.extra
                 ? [
-                    <span key="1" style={{ fontSize: "12px", color: "#888" }}>
+                    <span key="1" style={{ fontSize: "0.75rem", color: "#888" }}>
                       {item.extra}
                     </span>,
                   ]
