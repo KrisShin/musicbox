@@ -1,6 +1,13 @@
+use std::path::PathBuf;
+
+use chrono::{SecondsFormat, Utc};
+use tauri::AppHandle;
+#[cfg(not(target_os = "android"))]
+use tauri::Manager;
+
 use crate::{
     model::{PlaylistInfo, PlaylistMusicItem},
-    my_util::DbPool,
+    my_util::{DbPool, get_app_setting},
 };
 
 pub async fn create_playlist(pool: &DbPool) -> Result<i64, sqlx::Error> {
@@ -115,4 +122,84 @@ pub async fn update_playlist_cover(
         .execute(pool)
         .await?;
     Ok(())
+}
+
+pub async fn export_db_file(_app_handle: AppHandle, pool: &DbPool) -> Result<String, String> {
+    // 1. 获取下载子路径，提供默认值 "MusicBox"
+    let sub_path = get_app_setting(pool, "download_path".to_string())
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| "MusicBox".to_string());
+
+    let app_data_dir = _app_handle
+        .path()
+        .app_data_dir()
+        .or_else(|_| Err("无法获取应用数据目录".to_string()))?;
+
+    // 在安卓平台上，我们硬编码到公共的 Download 目录
+    #[cfg(target_os = "android")]
+    use std::path::PathBuf;
+
+    #[cfg(target_os = "android")]
+    let base_path = PathBuf::from("/storage/emulated/0/Download");
+
+    #[cfg(not(target_os = "android"))]
+    let base_path = _app_handle
+        .path()
+        .download_dir()
+        .or_else(|_| Err("无法获取系统的下载目录".to_string()))?;
+
+    let source_path = app_data_dir.join("musicbox.db");
+
+    // 2. 将基础目录与从数据库读取的子目录名拼接
+    //    同时进行安全净化，防止 ".." 等路径遍历字符
+    let download_path = base_path.join(sub_path.replace("..", ""));
+
+    // 3. 确保最终的目录存在，如果不存在则创建
+    if !download_path.exists() {
+        tokio::fs::create_dir_all(&download_path)
+            .await
+            .map_err(|e| format!("创建下载目录 '{}' 失败: {}", download_path.display(), e))?;
+    }
+
+    let formatted_now_str = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true).replace(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..], "");
+
+    let base_filename = format!("musicbox_{}.db", formatted_now_str);
+
+    let initial_dest_path = download_path.join(&base_filename);
+
+    let final_path: PathBuf;
+
+    // 目标文件不存在，直接使用初始路径
+    final_path = initial_dest_path;
+
+    let ok: bool;
+
+    // [优化] 使用异步文件复制 tokio::fs::copy，避免阻塞线程
+    match tokio::fs::copy(&source_path, &final_path).await {
+        Ok(_) => ok = true,
+        Err(e) => {
+            println!(
+                "导出歌单失败: {} to {}, {}",
+                source_path.display(),
+                final_path.display(),
+                e
+            );
+            ok = false
+        }
+    }
+
+    if ok {
+        #[cfg(target_os = "android")]
+        let final_message = format!(
+            "导出完成！文件已保存至手机 Download/{} 文件夹。",
+            sub_path.replace("..", "")
+        );
+        #[cfg(not(target_os = "android"))]
+        let final_message = format!("导出完成！");
+
+        Ok(final_message)
+    } else {
+        Err(format!("导出失败。"))
+    }
 }

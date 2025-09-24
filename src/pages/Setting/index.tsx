@@ -62,7 +62,7 @@ const SettingPage: React.FC = () => {
     {
       tag: "exportDB",
       title: "导出播放列表",
-      icon: <ExportOutlined style={{ fontSize: iconSize, color: "" }} />,
+      icon: <ExportOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />,
       desc: "导出播放列表给其他MusicBox客户端",
     },
     {
@@ -122,8 +122,15 @@ const SettingPage: React.FC = () => {
   const handleImportLocal = () => {
     messageApi.info(`功能尚未完成, 请等待后续版本`, 1);
   };
-  const handleExportDB = () => {
-    messageApi.info(`功能尚未完成, 请等待后续版本`, 1);
+  const handleExportDB = async () => {
+    messageApi.info("数据导出中...")
+    let path: string = await invoke("export_db_file")
+    messageApi.destroy()
+    if (path) {
+      messageApi.success(path)
+    } else {
+      messageApi.error('导出失败, 请稍后重试')
+    }
   };
   const handleImportDB = () => {
     messageApi.info(`功能尚未完成, 请等待后续版本`, 1);

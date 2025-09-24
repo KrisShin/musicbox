@@ -179,6 +179,16 @@ pub async fn export_music_file(
 }
 
 #[tauri::command]
+pub async fn export_db_file(
+    app_handle: AppHandle,
+    state: tauri::State<'_, DbPool>,
+) -> Result<String, String> {
+    playlist::export_db_file(app_handle, state.inner())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn get_cache_size(app_handle: AppHandle) -> Result<String, String> {
     music_cache::get_cache_size(app_handle)
 }
@@ -259,5 +269,6 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         clear_cache_by_ids,
         get_cached_music_for_playlist,
         update_playlist_cover,
+        export_db_file,
     ]
 }
