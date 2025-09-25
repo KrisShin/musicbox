@@ -112,8 +112,8 @@
 }
 
 .create-playlist-button {
-  position: absolute;
-  top: 5.5rem;
+  position: relative;
+  top: 51.5rem;
   right: 1rem;
   padding: 0.5rem;
 }

@@ -89,13 +89,13 @@ pub struct PlaylistCacheInfo {
     pub name: String,
     pub cover_path: Option<String>,
     pub song_count: i64,
-    
+
     // 这个字段仍然在 Rust 中计算，保持不变
-    #[sqlx(skip)] 
-    #[serde(default)] 
+    #[sqlx(skip)]
+    #[serde(default)]
     pub cached_size_str: String,
-    
-    pub cached_song_count: i64, 
+
+    pub cached_song_count: i64,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
@@ -118,4 +118,20 @@ pub struct CachedMusicInfo {
 pub struct MusicToDelete {
     pub song_id: String,
     pub file_path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct AppSetting {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct Playlist {
+    pub id: i64,
+    pub name: String,
+    pub cover_path: Option<String>,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }

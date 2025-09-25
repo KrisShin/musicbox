@@ -87,7 +87,7 @@ const SearchPage: React.FC = () => {
     {
       title: "#",
       key: "index",
-      width: "2rem",
+      width: "1rem",
       align: "center",
       render: (_text, _record, index) => (
         <Text type="secondary">{index + 1}</Text>
@@ -97,6 +97,7 @@ const SearchPage: React.FC = () => {
       title: "歌曲",
       dataIndex: "title",
       key: "title",
+      ellipsis:true,
       render: (text, record) => (
         <Flex vertical justify="center" >
           <Text ellipsis={{ tooltip: text }}>
@@ -114,7 +115,7 @@ const SearchPage: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: "5rem",
       align: "center",
       render: (_text, record) => (
         <Flex gap="small" justify="center">

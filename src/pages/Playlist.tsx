@@ -84,7 +84,6 @@ const PlaylistPage: React.FC = () => {
       setPlaylists(result);
       // 如果当前没有选中的歌单，并且获取到了歌单，则默认选中第一个
       if (currentPlaylistId === null && result.length > 0) {
-        console.log(111)
         setCurrentPlaylistId(result[0].id);
       }
       return result
@@ -117,7 +116,7 @@ const PlaylistPage: React.FC = () => {
     {
       title: "#",
       key: "index",
-      width: 50,
+      width: 16,
       align: "center",
       render: (_text, _record, index) => (
         <Text type="secondary">{index + 1}</Text>
@@ -127,6 +126,8 @@ const PlaylistPage: React.FC = () => {
       title: "歌曲",
       dataIndex: "title",
       key: "title",
+      width: "auto",
+      ellipsis: true,
       render: (text, record) => (
         <Flex>
           <Avatar
@@ -152,7 +153,7 @@ const PlaylistPage: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: 80,
       align: "center",
       render: (_text, record) => (
         <Flex gap="small">

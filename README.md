@@ -19,7 +19,8 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 - 9. [修复]部分地方展示位置错误
 - 10. [新增]软件当前版本号
 - 11. [新增]删除歌单操作
-- 15. [修复]部分已知bug
+- 12. [新增]导入其他设备的歌单
+- 13. [修复]部分已知bug
 
 #### Release 20250917
 
