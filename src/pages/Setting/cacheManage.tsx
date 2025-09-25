@@ -36,6 +36,7 @@ interface PlaylistCacheInfo {
   id: number;
   name: string;
   cover_path: string | null;
+  song_count: number;
   cached_song_count: number;
   cached_size_str: string;
 }
@@ -172,16 +173,16 @@ const CacheManagePage: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <Flex vertical gap="16px">
+      <Flex vertical gap="1rem">
         <Card
           title={
             <Flex align="center">
               <ArrowLeftOutlined
                 onClick={() => navigate(-1)}
                 style={{
-                  marginRight: "16px",
+                  marginRight: "1rem",
                   color: primaryThemeColor,
-                  fontSize: "16px",
+                  fontSize: "1rem",
                 }}
               />
               <span>缓存管理</span>
@@ -215,7 +216,7 @@ const CacheManagePage: React.FC = () => {
                     min={0}
                     max={20}
                     step={1}
-                    style={{ width: "250px" }}
+                    style={{ width: "15.625rem" }}
                   />
                 </Form.Item>
                 <Text>
@@ -226,7 +227,7 @@ const CacheManagePage: React.FC = () => {
               </Space>
             </Form.Item>
             <Form.Item name="exclude" valuePropName="checked">
-              <Checkbox>自动清理时排除播放列表中的歌曲</Checkbox>
+              <Checkbox>自动清理时排除歌单中的歌曲</Checkbox>
             </Form.Item>
             <Form.Item name="cleanOld" valuePropName="checked">
               <Checkbox>自动清理超过3个月未播放的缓存</Checkbox>
@@ -249,10 +250,9 @@ const CacheManagePage: React.FC = () => {
                   onClick={() =>
                     handleClear(
                       nonPlaylistInfo?.song_ids || [],
-                      "清理非播放列表缓存",
-                      `确定要删除 ${
-                        nonPlaylistInfo?.count || 0
-                      } 首未在任何播放列表中的歌曲缓存吗？`,
+                      "清理非歌单缓存",
+                      `确定要删除 ${nonPlaylistInfo?.count || 0
+                      } 首未在任何歌单中的歌曲缓存吗？`,
                       fetchData
                     )
                   }
@@ -262,10 +262,9 @@ const CacheManagePage: React.FC = () => {
               ]}
             >
               <List.Item.Meta
-                title="清除非播放列表中的缓存"
-                description={`可释放 ${
-                  nonPlaylistInfo?.total_size_str || "0 B"
-                } (${nonPlaylistInfo?.count || 0} 首)`}
+                title="清除非歌单中的缓存"
+                description={`可释放 ${nonPlaylistInfo?.total_size_str || "0 B"
+                  } (${nonPlaylistInfo?.count || 0} 首)`}
               />
             </List.Item>
 
@@ -278,8 +277,7 @@ const CacheManagePage: React.FC = () => {
                     handleClear(
                       oldCacheInfo?.song_ids || [],
                       "清理长期未播放缓存",
-                      `确定要删除 ${
-                        oldCacheInfo?.count || 0
+                      `确定要删除 ${oldCacheInfo?.count || 0
                       } 首超过3个月未播放的歌曲缓存吗？`,
                       fetchData
                     )
@@ -291,9 +289,8 @@ const CacheManagePage: React.FC = () => {
             >
               <List.Item.Meta
                 title="清除超过3个月未播放的缓存"
-                description={`可释放 ${
-                  oldCacheInfo?.total_size_str || "0 B"
-                } (${oldCacheInfo?.count || 0} 首)`}
+                description={`可释放 ${oldCacheInfo?.total_size_str || "0 B"
+                  } (${oldCacheInfo?.count || 0} 首)`}
               />
             </List.Item>
 
@@ -340,7 +337,7 @@ const CacheManagePage: React.FC = () => {
                     />
                   }
                   title={item.name}
-                  description={`${item.cached_song_count} 首已缓存, 约 ${item.cached_size_str}`}
+                  description={`${item.cached_song_count}/${item.song_count} 首已缓存, 约 ${item.cached_size_str}`}
                 />
               </List.Item>
             )}

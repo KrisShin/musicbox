@@ -45,8 +45,8 @@ async fn toggle_music_in_playlist(
 }
 
 #[tauri::command]
-async fn create_playlist(name: String, state: tauri::State<'_, DbPool>) -> Result<i64, String> {
-    playlist::create_playlist(state.inner(), name)
+async fn create_playlist(state: tauri::State<'_, DbPool>) -> Result<i64, String> {
+    playlist::create_playlist(state.inner())
         .await
         .map_err(|e| e.to_string())
 }
@@ -179,6 +179,16 @@ pub async fn export_music_file(
 }
 
 #[tauri::command]
+pub async fn export_db_file(
+    app_handle: AppHandle,
+    state: tauri::State<'_, DbPool>,
+) -> Result<String, String> {
+    playlist::export_db_file(app_handle, state.inner())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn get_cache_size(app_handle: AppHandle) -> Result<String, String> {
     music_cache::get_cache_size(app_handle)
 }
@@ -233,6 +243,17 @@ pub async fn update_playlist_cover(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn import_database_from_bytes(
+    app_handle: AppHandle,
+    bytes: Vec<u8>,
+    mode: String,
+) -> Result<String, String> {
+    playlist::import_database_from_bytes(app_handle, bytes, &mode)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
     tauri::generate_handler![
         save_music,
@@ -259,5 +280,7 @@ pub fn get_command_handler() -> impl Fn(Invoke) -> bool {
         clear_cache_by_ids,
         get_cached_music_for_playlist,
         update_playlist_cover,
+        export_db_file,
+        import_database_from_bytes,
     ]
 }

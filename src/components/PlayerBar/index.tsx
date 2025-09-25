@@ -96,15 +96,15 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
         bottom: 0,
         width: "100%",
         backgroundColor: "#ffede5ff",
-        borderRadius: "15px 15px 0 0",
-        padding: "8px 14px 28px 14px",
-        borderTop: "5px solid #ffb5b5ff",
+        borderRadius: "0.9375rem 0.9375rem 0 0",
+        padding: "0.5rem 0.875rem 1.75rem 0.875rem",
+        borderTop: "0.3125rem solid #ffb5b5ff",
         zIndex: 1000,
       }}
     >
       <Row align="middle" justify="space-between">
         <Col span={24}>
-          <Row justify="center" style={{ marginBottom: "3px" }}>
+          <Row justify="center" style={{ marginBottom: "0.1875rem" }}>
             <Text
               strong
               ellipsis
@@ -114,7 +114,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
             </Text>
             <Flex
               flex={1}
-              style={{ minWidth: "70%", borderBottom: "1px solid #ffb5b5ff" }}
+              style={{ minWidth: "70%", borderBottom: "0.0625rem solid #ffb5b5ff" }}
             >
               <LyricScroller
                 lyricText={currentMusic.lyric || ""}
@@ -124,8 +124,8 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
             <Button
               style={{
                 position: "absolute",
-                right: "-10px",
-                top: "-12px",
+                right: "-0.625rem",
+                top: "-0.75rem",
               }}
               type="text"
               icon={<CloseOutlined style={{ color: "#f00" }} />}
@@ -149,7 +149,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                   isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />
                 }
                 onClick={onPlayPause}
-                style={{ margin: "0 5px", transform: "scale(1.05)" }}
+                style={{ margin: "0 0.3125rem", transform: "scale(1.05)" }}
               />
               <Button
                 type="text"
@@ -171,9 +171,9 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                   onChange={handleSeek}
                   tooltip={{ formatter }}
                   step={0.1}
-                  style={{ flex: 1, margin: "0 8px" }} // 关键：让 Slider 占据剩余空间
+                  style={{ flex: 1, margin: "0 0.5rem" }} // 关键：让 Slider 占据剩余空间
                 />
-                <Text style={{ fontSize: "12px", color: "#888" }}>
+                <Text style={{ fontSize: "0.75rem", color: "#888" }}>
                   {formatTime(
                     typeof currentMusic.duration === "number"
                       ? currentMusic.duration
@@ -181,7 +181,7 @@ const PlayerBar: React.FC<PlayerBarProps> = ({
                   )}
                 </Text>
               </Flex>
-              <a color="pink" style={{ padding: "5px" }} onClick={onSave}>
+              <a color="pink" style={{ padding: "0.3125rem" }} onClick={onSave}>
                 <DownloadOutlined style={{ color: "#e87997" }} />
               </a>
             </Flex>

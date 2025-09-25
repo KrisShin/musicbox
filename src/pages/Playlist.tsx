@@ -17,6 +17,7 @@ import {
   PlaySquareOutlined,
   DeleteOutlined,
   CaretDownOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
@@ -24,19 +25,18 @@ import type { PlaylistInfo, Music, PlaylistMusic } from "../types";
 import "./Playlist.css"; // 我们将为它创建专属的 CSS
 import { useGlobalMessage } from "../components/MessageHook";
 import { buildCoverUrl } from "../util";
+import { primaryThemeColor } from "../main";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 
 const PlaylistPage: React.FC = () => {
   // --- 全局状态 ---
-  const { startPlayback, cyclePlayMode, saveSongWithNotifications } = useAppStore();
+  const { startPlayback, cyclePlayMode, saveSongWithNotifications, addDownloadingId, removeDownloadingId, currentPlaylistId, setCurrentPlaylistId } = useAppStore();
 
   // --- 页面内部状态 ---
   const [playlists, setPlaylists] = useState<PlaylistInfo[]>([]);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(
-    null
-  );
+
   const [selectedPlaylistMusic, setSelectedPlaylistMusic] = useState<
     PlaylistMusic[]
   >([]);
@@ -83,24 +83,25 @@ const PlaylistPage: React.FC = () => {
       const result: PlaylistInfo[] = await invoke("get_all_playlists");
       setPlaylists(result);
       // 如果当前没有选中的歌单，并且获取到了歌单，则默认选中第一个
-      if (selectedPlaylistId === null && result.length > 0) {
-        setSelectedPlaylistId(result[0].id);
+      if (currentPlaylistId === null && result.length > 0) {
+        setCurrentPlaylistId(result[0].id);
       }
+      return result
     } catch (error) {
       messageApi.error("加载歌单列表失败");
       console.error(error);
     } finally {
       setLoadingPlaylists(false);
     }
-  }, [messageApi, selectedPlaylistId]); // 依赖 selectedPlaylistId 以避免重复设置
+  }, [messageApi, currentPlaylistId]); // 依赖 selectedPlaylistId 以避免重复设置
 
   // 函数2: 获取指定歌单的音乐 (保持独立)
   const fetchPlaylistMusic = useCallback(async () => {
-    if (selectedPlaylistId === null) return; // 防御性编程
+    if (currentPlaylistId === null) return; // 防御性编程
     setLoadingMusic(true);
     try {
       const result: PlaylistMusic[] = await invoke("get_music_by_playlist_id", {
-        playlistId: selectedPlaylistId,
+        playlistId: currentPlaylistId,
       });
       setSelectedPlaylistMusic(result);
     } catch (error) {
@@ -109,13 +110,13 @@ const PlaylistPage: React.FC = () => {
     } finally {
       setLoadingMusic(false);
     }
-  }, [selectedPlaylistId, messageApi]);
+  }, [currentPlaylistId, messageApi]);
 
   const columns: TableProps<PlaylistMusic>["columns"] = [
     {
       title: "#",
       key: "index",
-      width: 50,
+      width: 16,
       align: "center",
       render: (_text, _record, index) => (
         <Text type="secondary">{index + 1}</Text>
@@ -125,6 +126,8 @@ const PlaylistPage: React.FC = () => {
       title: "歌曲",
       dataIndex: "title",
       key: "title",
+      width: "auto",
+      ellipsis: true,
       render: (text, record) => (
         <Flex>
           <Avatar
@@ -150,7 +153,7 @@ const PlaylistPage: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: 80,
       align: "center",
       render: (_text, record) => (
         <Flex gap="small">
@@ -178,11 +181,11 @@ const PlaylistPage: React.FC = () => {
     },
   ];
   const handleConfirmCoverChange = async () => {
-    if (!selectedPlaylistId || !selectedCoverUrl) return;
+    if (!currentPlaylistId || !selectedCoverUrl) return;
 
     try {
       await invoke("update_playlist_cover", {
-        playlistId: selectedPlaylistId,
+        playlistId: currentPlaylistId,
         coverPath: selectedCoverUrl,
       });
       messageApi.success("封面已更新！");
@@ -195,18 +198,18 @@ const PlaylistPage: React.FC = () => {
   };
   const refreshData = useCallback(() => {
     fetchPlaylists();
-    if (selectedPlaylistId) {
+    if (currentPlaylistId) {
       fetchPlaylistMusic();
     }
-  }, [fetchPlaylists, fetchPlaylistMusic, selectedPlaylistId]);
+  }, [fetchPlaylists, fetchPlaylistMusic, currentPlaylistId]);
   // 1. 组件加载时，获取所有歌单
   useEffect(() => {
     fetchPlaylists();
   }, []); // 空依赖数组确保只运行一次
 
-  // Effect 2: 仅在 selectedPlaylistId 变化时获取该歌单的歌曲
+  // Effect 2: 仅在 currentPlaylistId 变化时获取该歌单的歌曲
   useEffect(() => {
-    if (selectedPlaylistId !== null) {
+    if (currentPlaylistId !== null) {
       fetchPlaylistMusic();
     }
     const calculateTableHeight = () => {
@@ -232,13 +235,13 @@ const PlaylistPage: React.FC = () => {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [selectedPlaylistId, fetchPlaylistMusic]);
+  }, [currentPlaylistId, fetchPlaylistMusic]);
 
 
   // 3. 使用 useMemo 提高性能，避免每次渲染都重新查找
   const selectedPlaylist = useMemo(() => {
-    return playlists.find((p) => p.id === selectedPlaylistId);
-  }, [playlists, selectedPlaylistId]);
+    return playlists.find((p) => p.id === currentPlaylistId);
+  }, [playlists, currentPlaylistId]);
 
   // 4. 处理歌单重命名
   const handleRenamePlaylist = async (newName: string) => {
@@ -277,7 +280,7 @@ const PlaylistPage: React.FC = () => {
     try {
       await invoke("toggle_music_in_playlist", {
         payload: {
-          playlistId: selectedPlaylist.id,
+          playlist_id: selectedPlaylist.id,
           song_ids: [music.song_id],
         },
       });
@@ -309,9 +312,15 @@ const PlaylistPage: React.FC = () => {
   };
 
   const handleDownload = async (music: Music) => {
+    if (useAppStore.getState().downloadingIds.has(music.song_id)) {
+      messageApi.destroy()
+      messageApi.info('正在下载中, 请稍后重试')
+      return
+    }
+    addDownloadingId(music.song_id)
     try {
       messageApi.success(`开始下载 ${music.title}...`);
-      saveSongWithNotifications([music])
+      await saveSongWithNotifications([music])
         .then(async (_: string) => {
           messageApi.destroy();
           messageApi.success(`${music.title}下载完成`);
@@ -325,10 +334,31 @@ const PlaylistPage: React.FC = () => {
       messageApi.destroy();
       messageApi.error(`下载失败: ${error || "未知错误"}`);
       return;
+    } finally {
+      removeDownloadingId(music.song_id)
     }
   };
 
-  // --- 渲染 ---
+  const handleCreatePlaylist = async () => {
+    await invoke('create_playlist').then(() => {
+      messageApi.destroy()
+      messageApi.success(`新建歌单完成`)
+      fetchPlaylists().then((result: any) => {
+        setCurrentPlaylistId(result.at(-1).id)
+        fetchPlaylistMusic()
+      })
+    })
+  }
+  const handleDeletePlaylist = async (p_id: number) => {
+    await invoke('delete_playlist', { playlistId: p_id }).then(() => {
+      messageApi.destroy()
+      messageApi.success(`删除歌单完成`)
+      fetchPlaylists().then((result: any) => {
+        setCurrentPlaylistId(p_id === currentPlaylistId ? result.at(0).id : currentPlaylistId)
+        fetchPlaylistMusic()
+      })
+    })
+  }
 
   return (
     <Flex vertical className="playlist-page-container" ref={containerRef}>
@@ -371,6 +401,14 @@ const PlaylistPage: React.FC = () => {
                     {new Date(selectedPlaylist.updated_at).toLocaleDateString()}
                   </Text>
                 </Flex>
+                <PlusOutlined className="create-playlist-button" style={{ color: primaryThemeColor }} onClick={() => {
+                  if (playlists.length < 8) {
+                    handleCreatePlaylist()
+                    return
+                  }
+                  messageApi.destroy()
+                  messageApi.warning("最多只支持8个歌单")
+                }} />
               </Flex>
 
               <Flex gap="middle" className="header-actions">
@@ -389,17 +427,22 @@ const PlaylistPage: React.FC = () => {
                 <Button
                   icon={<DownloadOutlined />}
                   type="primary"
-                  onClick={() => {
+                  onClick={async () => {
+                    selectedPlaylistMusic.map((music: Music) => {
+                      addDownloadingId(music.song_id)
+                    })
                     messageApi.info(
                       `正在下载 ${selectedPlaylistMusic.length} 首歌曲...`,
-                      10
+                      5
                     );
-                    saveSongWithNotifications(selectedPlaylistMusic).then(
+                    await saveSongWithNotifications(selectedPlaylistMusic).then(
                       () => {
                         messageApi.destroy();
                         messageApi.success(`全部歌曲下载完成`);
                       }
-                    );
+                    ).finally(() => selectedPlaylistMusic.map((music: Music) => {
+                      removeDownloadingId(music.song_id)
+                    }));
                   }}
                 >
                   下载全部
@@ -454,15 +497,16 @@ const PlaylistPage: React.FC = () => {
             <List.Item
               className="playlist-selector-item"
               onClick={() => {
-                setSelectedPlaylistId(p.id);
+                setCurrentPlaylistId(p.id);
                 setIsSelectorVisible(false);
               }}
+              actions={[<DeleteOutlined style={{ color: "red", padding: "0.8rem" }} onClick={(e) => { e?.stopPropagation(); handleDeletePlaylist(p.id); }} />]}
             >
               <List.Item.Meta
                 avatar={
                   <Avatar
                     shape="square"
-                    src={p?.cover_path || "/default_cover.png"}
+                    src={p?.cover_path || "/icon.png"}
                   />
                 }
                 title={p.name}
@@ -500,7 +544,7 @@ const PlaylistPage: React.FC = () => {
         ]}
         width={600}
       >
-        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
+        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "0.625rem" }}>
           <List
             grid={{ gutter: 16, xs: 3, sm: 4, md: 5, lg: 6 }}
             dataSource={uniqueCoverUrls} // 过滤掉没有封面的歌曲

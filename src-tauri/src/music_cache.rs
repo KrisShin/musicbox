@@ -99,23 +99,24 @@ pub async fn get_old_cache_info(pool: &DbPool) -> Result<CacheAnalysisResult, St
     })
 }
 
-/// 6. 获取所有播放列表的缓存信息
 pub async fn get_all_playlists_cache_info(pool: &DbPool) -> Result<Vec<PlaylistCacheInfo>, String> {
-    // 使用 GROUP_CONCAT 来聚合一个播放列表下所有缓存文件的路径
     let mut playlists: Vec<PlaylistCacheInfo> = sqlx::query_as(
         r#"
         SELECT
             p.id,
             p.name,
             p.cover_path,
-            COUNT(m.song_id) as cached_song_count
+            COUNT(pm.song_id) as song_count,
+            SUM(CASE WHEN m.file_path IS NOT NULL AND m.file_path != '' THEN 1 ELSE 0 END) as cached_song_count
         FROM
             playlist p
-        JOIN
+        LEFT JOIN
             playlist_music pm ON p.id = pm.playlist_id
-        JOIN
+        LEFT JOIN
             music m ON pm.song_id = m.song_id
         GROUP BY
+            p.id
+        ORDER BY
             p.id
         "#,
     )
@@ -123,22 +124,27 @@ pub async fn get_all_playlists_cache_info(pool: &DbPool) -> Result<Vec<PlaylistC
     .await
     .map_err(|e| e.to_string())?;
 
-    // 在 Rust 中循环计算每个播放列表的总大小
     for playlist in playlists.iter_mut() {
-        let file_paths: Vec<(String,)> = sqlx::query_as(
-            r#"
-            SELECT m.file_path FROM music m
-            JOIN playlist_music pm ON m.song_id = pm.song_id
-            WHERE pm.playlist_id = ? AND m.file_path IS NOT NULL
-            "#,
-        )
-        .bind(playlist.id)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        // 仅当存在已缓存的歌曲时，才需要查询路径并计算大小
+        if playlist.cached_song_count > 0 {
+            let file_paths: Vec<(String,)> = sqlx::query_as(
+                r#"
+                SELECT m.file_path FROM music m
+                JOIN playlist_music pm ON m.song_id = pm.song_id
+                WHERE pm.playlist_id = ? AND m.file_path IS NOT NULL AND m.file_path != ''
+                "#,
+            )
+            .bind(playlist.id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
-        let total_size = calculate_total_size(file_paths.into_iter().map(|(p,)| p).collect());
-        playlist.cached_size_str = format_size(total_size);
+            let total_size = calculate_total_size(file_paths.into_iter().map(|(p,)| p).collect());
+            playlist.cached_size_str = format_size(total_size);
+        } else {
+            // 如果没有缓存歌曲，直接设置为 0 B
+            playlist.cached_size_str = "0 B".to_string();
+        }
     }
 
     Ok(playlists)

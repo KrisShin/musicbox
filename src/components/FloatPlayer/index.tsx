@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Avatar, Typography } from "antd"; // 1. 移除 Flex 和 Button
 import {
   PlayCircleFilled,
@@ -9,6 +9,7 @@ import {
 import type { Music } from "../../types";
 import "./index.css";
 import { buildCoverUrl } from "../../util";
+import { useAppStore } from "../../store";
 
 const { Text } = Typography;
 
@@ -25,8 +26,7 @@ const FloatPlayer: React.FC<FloatPlayerProps> = ({
   onPlayPause,
   visible,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
+  const { floatPlayerCollapsed, setFloatPlayerCollapsed } = useAppStore()
   if (!currentMusic || !visible) {
     return null;
   }
@@ -34,23 +34,23 @@ const FloatPlayer: React.FC<FloatPlayerProps> = ({
   // 阻止事件冒泡，避免点击播放器时触发页面其他元素的点击事件
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isCollapsed) {
+    if (!floatPlayerCollapsed) {
       onPlayPause();
     }
   };
 
   const handleToggleCollapse = (e: React.MouseEvent) => {
     e.stopPropagation(); // 必须阻止冒泡，避免触发播放/暂停
-    setIsCollapsed(!isCollapsed);
+    setFloatPlayerCollapsed(!floatPlayerCollapsed);
   };
 
   return (
     <div
-      className={`floating-player-container ${isCollapsed ? "collapsed" : ""}`}
+      className={`floating-player-container ${floatPlayerCollapsed ? "collapsed" : ""}`}
     >
       {/* 7. 新增的收起/展开切换“把手” */}
       <div className="player-toggle-handle" onClick={handleToggleCollapse}>
-        {isCollapsed ? <RightOutlined /> : <LeftOutlined />}
+        {floatPlayerCollapsed ? <RightOutlined /> : <LeftOutlined />}
       </div>
 
       {/* 您的原始封面区域，点击事件已修改 */}
@@ -63,11 +63,11 @@ const FloatPlayer: React.FC<FloatPlayerProps> = ({
         <div className="player-icon-overlay">
           {isPlaying ? (
             <PauseCircleFilled
-              style={{ fontSize: "25px", color: "rgba(255, 255, 255, 0.7)" }}
+              style={{ fontSize: "1.5625rem", color: "rgba(255, 255, 255, 0.7)" }}
             />
           ) : (
             <PlayCircleFilled
-              style={{ fontSize: "25px", color: "rgba(255, 255, 255, 0.7)" }}
+              style={{ fontSize: "1.5625rem", color: "rgba(255, 255, 255, 0.7)" }}
             />
           )}
         </div>

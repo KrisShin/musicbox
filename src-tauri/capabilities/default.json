@@ -10,6 +10,7 @@
     "core:path:default",
     "clipboard-manager:allow-write-text",
     "dialog:default",
+    "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-copy-file",
     {
@@ -42,6 +43,7 @@
     },
     "os:default",
     "notification:default",
-    "opener:default"
+    "opener:default",
+    "process:default"
   ]
 }

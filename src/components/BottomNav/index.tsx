@@ -17,9 +17,9 @@ interface NavItemProps {
 const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
     const color = isActive ? '#F08080' : '#888';
     return (
-        <Flex vertical align="center" justify="center" gap={4} onClick={onClick} style={{ cursor: 'pointer', color, padding: '6px 20px' }}>
+        <Flex vertical align="center" justify="center" gap={4} onClick={onClick} style={{ cursor: 'pointer', color, padding: '0.375rem 1.25rem' }}>
             {icon}
-            <span style={{ fontSize: '12px', lineHeight: 1 }}>{label}</span>
+            <span style={{ fontSize: '0.75rem', lineHeight: 1 }}>{label}</span>
         </Flex>
     );
 };
@@ -29,7 +29,7 @@ const BottomNav: React.FC = () => {
     const location = useLocation();
     const currentMusic = useAppStore(state => state.currentMusic);
 
-    const iconStyle = { fontSize: '21px' };
+    const iconStyle = { fontSize: '1.3rem' };
     const navItems = [
         { icon: <SearchOutlined style={iconStyle} />, label: '发现', path: '/' },
         { icon: <UnorderedListOutlined style={iconStyle} />, label: '歌单', path: '/playlist' },
@@ -55,9 +55,9 @@ const BottomNav: React.FC = () => {
                 left: 0,
                 right: 0,
                 background: '#fff5f5',
-                borderRadius: "15px 15px 0 0",
-                padding: "8px 14px 28px 14px",
-                borderTop: "5px solid #ffb5b5ff",
+                borderRadius: "1rem 1rem 0 0",
+                padding: "0.5rem 0.9rem 1.75rem 0.9rem",
+                borderTop: "0.32rem solid #ffb5b5ff",
                 zIndex: 10,
             }}
         >
