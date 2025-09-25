@@ -7,7 +7,7 @@ use tauri_plugin_http::reqwest;
 
 use crate::{
     model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload},
-    my_util::{DbPool, get_app_setting},
+    my_util::{calculate_file_hash, get_app_setting, DbPool},
 };
 
 pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sqlx::Error> {
@@ -539,7 +539,7 @@ pub async fn export_music_file(
     let mut skipped_uncached_count = 0; // 原 skipped_count，改名以示区分
     let mut skipped_identical_count = 0; // 新增：因文件已存在且内容一致而跳过的计数器
 
-    for music in music_list {
+    'music_loop: for music in music_list {
         if let Some(source_path_str) = music.file_path.filter(|p| !p.is_empty()) {
             let source_path = PathBuf::from(&source_path_str);
 
@@ -578,35 +578,20 @@ pub async fn export_music_file(
 
             if let Ok(dest_metadata) = tokio::fs::metadata(&initial_dest_path).await {
                 // 目标文件已存在，进行元数据比较
-                let source_size = source_metadata.len();
-                let dest_size = dest_metadata.len();
-                let source_mod_time = source_metadata.modified().ok();
-                let dest_mod_time = dest_metadata.modified().ok();
-
-                if source_size == dest_size
-                    && source_mod_time.is_some()
-                    && source_mod_time == dest_mod_time
-                {
-                    // 文件大小和修改时间都一致，判定为相同文件，跳过
-                    // println!(
-                    //     "文件 '{}' 已存在且内容一致，跳过。",
-                    //     initial_dest_path.display()
-                    // );
-                    skipped_identical_count += 1;
-                    continue; // 直接进入下一首歌曲的循环
-                } else {
-                    // 文件名冲突，但内容不一致，启动数字后缀逻辑
-                    let mut counter = 1;
-                    loop {
-                        let new_filename = format!("{} ({}).mp3", base_filename_stem, counter);
-                        let next_path = download_path.join(&new_filename);
-                        if tokio::fs::metadata(&next_path).await.is_err() {
-                            final_path = next_path;
-                            break; // 找到可用路径，跳出循环
-                        }
-                        counter += 1;
+                if source_metadata.len() == dest_metadata.len() {
+                    // 文件大小一致，再比较哈希值
+                    let source_hash = calculate_file_hash(&source_path).ok();
+                    let dest_hash = calculate_file_hash(&initial_dest_path).ok();
+                    
+                    if source_hash.is_some() && source_hash == dest_hash {
+                        // 哈希值也一致，确定是相同文件，跳过
+                        println!("文件 '{}' 已存在且内容一致，跳过。", initial_dest_path.display());
+                        skipped_identical_count += 1;
+                        continue 'music_loop; // 直接进入下一首歌曲的循环
                     }
+                    continue 'music_loop; // 直接进入下一首歌曲的循环
                 }
+                final_path = initial_dest_path;
             } else {
                 // 目标文件不存在，直接使用初始路径
                 final_path = initial_dest_path;

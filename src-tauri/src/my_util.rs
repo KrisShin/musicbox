@@ -1,6 +1,8 @@
+use sha2::{Digest, Sha256};
 use sqlx::{SqlitePool, migrate::Migrator};
-use std::fs::OpenOptions;
-use std::path::PathBuf;
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufReader, Read};
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
@@ -113,4 +115,21 @@ pub fn format_size(bytes: u64) -> String {
     } else {
         format!("{} B", bytes)
     }
+}
+
+pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    let input = File::open(path)?;
+    let mut reader = BufReader::new(input);
+    let mut hasher = Sha256::new();
+    let mut buffer = [0; 1024];
+
+    loop {
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        hasher.update(&buffer[..count]);
+    }
+
+    Ok(hex::encode(hasher.finalize()))
 }
