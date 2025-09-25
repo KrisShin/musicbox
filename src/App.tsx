@@ -29,19 +29,19 @@ const AppHeader = () => (
     <Header
       style={{
         backgroundColor: "#fff5f5",
-        borderBottom: "1px solid #ffb5b5ff",
+        borderBottom: "0.06rem solid #ffb5b5ff",
         display: "flex",
         justifyContent: "center",
-        padding: `env(safe-area-inset-top) 16px 4px 16px`,
-        height: `calc(75px + env(safe-area-inset-top))`,
+        padding: `env(safe-area-inset-top) 1rem 0.25rem 1rem`,
+        height: `calc(4.75rem + env(safe-area-inset-top))`,
       }}
     >
       <Flex align="end" gap={1}>
         <Image
           src="/header_icon.png"
           preview={false}
-          wrapperStyle={{ display: "inline-flex", height: "25px" }}
-          width="25px"
+          wrapperStyle={{ display: "inline-flex", height: "1.625rem" }}
+          width="1.625rem"
         />
         <Title level={3} style={{ margin: 0, color: "#333333", lineHeight: 1 }}>
           MusicBox
@@ -164,8 +164,8 @@ const AppContent = () => {
         style={{
           flex: 1, // 关键：让这个区域占据所有剩余的可用空间
           overflowY: "auto", // 关键：只在这个区域内部启用垂直滚动
-          padding: "6px",
-          paddingBottom: "100px", // 保留您的逻辑，防止内容被底部栏遮挡
+          padding: "0.375rem",
+          paddingBottom: "6.25rem", // 保留您的逻辑，防止内容被底部栏遮挡
           transition: "padding-bottom 0.3s",
           scrollbarWidth: "none", // 使滚动条更细
         }}

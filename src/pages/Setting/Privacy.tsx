@@ -16,7 +16,7 @@ const PrivacyPage: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <ArrowLeftOutlined
                             onClick={() => navigate(-1)}
-                            style={{ marginRight: '16px', cursor: 'pointer', fontSize: '16px', color: primaryThemeColor }}
+                            style={{ marginRight: '1rem', cursor: 'pointer', fontSize: '1rem', color: primaryThemeColor }}
                         />
                         <span>隐私政策</span>
                     </div>

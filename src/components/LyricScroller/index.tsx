@@ -91,12 +91,12 @@ const LyricScroller: React.FC<LyricScrollerProps> = ({
           key={index}
           style={{
             margin: 0,
-            padding: "4px 0",
+            padding: "0.25rem 0",
             transition: "color 0.3s, font-size 0.3s",
             // 高亮当前行
             color: index === currentLineIndex ? primaryThemeColor : "#5a5a5aff",
-            textShadow: index === currentLineIndex ? "0 0 5px #0a0633ff, 0 0 7px #a30000ff" : undefined,
-            fontSize: index === currentLineIndex ? "18px" : "14px",
+            textShadow: index === currentLineIndex ? "0 0 0.3125rem #0a0633ff, 0 0 0.4375rem #a30000ff" : undefined,
+            fontSize: index === currentLineIndex ? "1.125rem" : "0.875rem",
             fontWeight: index === currentLineIndex ? "bold" : "normal",
           }}
         >

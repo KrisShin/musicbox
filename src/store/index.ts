@@ -53,6 +53,17 @@ interface AppState {
   playMode: PlayMode; // [新增] 播放模式
   currentTime: number;
   duration: number;
+  floatPlayerCollapsed: boolean;
+  setFloatPlayerCollapsed: (collapse?: boolean) => void;
+
+  // 歌单状态
+  currentPlaylistId?: number | null;
+  setCurrentPlaylistId: (playlistId: number) => void;
+
+  // 下载状态
+  downloadingIds: Set<string>;
+  addDownloadingId: (id: string) => void;
+  removeDownloadingId: (id: string) => void;
 
   // Actions
   handleSearch: (value: string) => Promise<void>;
@@ -89,6 +100,26 @@ export const useAppStore = create<AppState>()(
       isPlaying: false,
       currentTime: 0,
       duration: 0,
+      floatPlayerCollapsed: false,
+      setFloatPlayerCollapsed: (collapse?: boolean) => { (collapse !== undefined) ? set({ floatPlayerCollapsed: collapse }) : set({ floatPlayerCollapsed: !get().floatPlayerCollapsed }) },
+
+      currentPlaylistId: null,
+      setCurrentPlaylistId: (playlistId?: number | null) => { set({ currentPlaylistId: playlistId }) },
+
+      downloadingIds: new Set(), // <-- 初始化为空 Set
+      addDownloadingId: (id) => {
+        set((state) => ({
+          downloadingIds: new Set(state.downloadingIds).add(id),
+        }));
+      },
+
+      removeDownloadingId: (id) => {
+        set((state) => {
+          const newSet = new Set(state.downloadingIds);
+          newSet.delete(id); // <-- 使用 Set 的 delete 方法
+          return { downloadingIds: newSet };
+        });
+      },
 
       // --- Actions ---
       handleSearch: async (value) => {
@@ -120,6 +151,7 @@ export const useAppStore = create<AppState>()(
           set({ loading: false, searched: false });
         }
       },
+
       handleDetail: async (music: Music) => {
         try {
           const result = await musicDetail(music);
@@ -151,7 +183,6 @@ export const useAppStore = create<AppState>()(
           throw new Error("获取歌曲详情失败");
         }
       },
-
       _playIndexMusic: (index) => {
         const { playQueue, handleDetail, startPlayback, handleClose } = get();
         if (index < 0 || index >= playQueue.length) {
@@ -286,7 +317,7 @@ export const useAppStore = create<AppState>()(
           if (hasPermission) {
             sendNotification({
               title: "缓存完成 🎉",
-              body: musicList.length===1?`歌曲《${musicList[0].title}》已成功保存到本地！`:'所有歌曲已成功保存到本地！',
+              body: musicList.length === 1 ? `歌曲《${musicList[0].title}》已成功保存到本地！` : '所有歌曲已成功保存到本地！',
             });
           }
           return file_path;
@@ -306,8 +337,8 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "frontend-cache", // [核心修复] persist 中间件会自动使用 createJSONStorage 来包装我们提供的原始 tauriStorage // 这解决了所有的类型冲突
-      storage: createJSONStorage(() => tauriStorage), // [关键] partialize 保持不变
+      name: "frontend-cache",
+      storage: createJSONStorage(() => tauriStorage),
       partialize: (state) => ({
         currentMusic: state.currentMusic,
         playingMusicIndex: state.playingMusicIndex,
@@ -315,6 +346,8 @@ export const useAppStore = create<AppState>()(
         currentKeyword: state.currentKeyword,
         playQueue: state.playQueue,
         playMode: state.playMode,
+        currentPlaylistId: state.currentPlaylistId,
+        floatPlayerCollapsed: state.floatPlayerCollapsed,
       }),
     }
   )

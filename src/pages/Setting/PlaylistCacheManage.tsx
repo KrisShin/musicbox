@@ -165,17 +165,17 @@ const PlaylistCacheManagePage: React.FC = () => {
           align="center"
           justify="space-between"
           style={{
-            padding: "10px 15px",
-            borderBottom: "1px solid #f0f0f0",
+            padding: "0.625rem 0.9375rem",
+            borderBottom: "0.0625rem solid #f0f0f0",
             flexShrink: 0,
           }}
         >
           <Space>
             <ArrowLeftOutlined
               style={{
-                marginRight: "16px",
+                marginRight: "1rem",
                 color: primaryThemeColor,
-                fontSize: "16px",
+                fontSize: "1rem",
               }}
               onClick={() => navigate(-1)}
             />
@@ -200,7 +200,7 @@ const PlaylistCacheManagePage: React.FC = () => {
         <Flex
           justify="space-between"
           align="center"
-          style={{ padding: "10px 15px", flexShrink: 0 }}
+          style={{ padding: "0.625rem 0.9375rem", flexShrink: 0 }}
         >
           <Search
             placeholder="搜索歌名或歌手"
