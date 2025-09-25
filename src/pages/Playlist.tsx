@@ -350,6 +350,11 @@ const PlaylistPage: React.FC = () => {
     })
   }
   const handleDeletePlaylist = async (p_id: number) => {
+    if (playlists.length === 1) {
+      messageApi.destroy()
+      messageApi.warning("至少保留一个歌单")
+      return
+    }
     await invoke('delete_playlist', { playlistId: p_id }).then(() => {
       messageApi.destroy()
       messageApi.success(`删除歌单完成`)
