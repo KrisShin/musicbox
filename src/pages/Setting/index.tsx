@@ -73,7 +73,7 @@ const SettingPage: React.FC = () => {
     {
       tag: "importDB",
       title: "导入播放列表",
-      icon: <SelectOutlined style={{ fontSize: iconSize, color: "" }} />,
+      icon: <SelectOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />,
       desc: "导入来自其他MusicBox客户端的播放列表",
     },
     {
