@@ -22,6 +22,9 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 - 12. [新增]导入其他设备的歌单
 - 13. [修复]部分已知bug
 
+### 待修复
+- 1. 安卓10及以下公共存储空间读写权限问题导致无法下载
+
 #### Release 20250917
 
 - 1. [新增]支持手动清理歌单外的缓存文件
