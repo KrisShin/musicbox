@@ -116,7 +116,7 @@ const SettingPage: React.FC = () => {
     {
       tag: "reset",
       title: "重置App",
-      icon: <DatabaseOutlined style={{ fontSize: iconSize, color: "red" }} />,
+      icon: <DatabaseOutlined style={{ fontSize: iconSize, color: "" }} />,
       desc: "如果你遇到了无法解决的问题, 这会重置您的全部数据",
     },
   ];
@@ -131,7 +131,7 @@ const SettingPage: React.FC = () => {
       });
       messageApi.destroy();
 
-      Modal.success({
+      modalApi.success({
         title: "导入成功",
         content: "数据已成功导入。应用需要重启以加载最新数据。",
         okText: "立即重启",
@@ -141,7 +141,7 @@ const SettingPage: React.FC = () => {
       });
     } catch (error) {
       messageApi.destroy();
-      Modal.error({
+      modalApi.error({
         title: "导入失败",
         content: `发生错误: ${error}。您的数据未被更改。建议重启应用以恢复正常状态。`,
         okText: "立即重启",

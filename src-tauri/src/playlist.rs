@@ -359,7 +359,7 @@ async fn handle_merge(import_path: &Path, db_path: &Path) -> Result<(), String> 
         .await
         .map_err(|e| e.to_string())?;
     for setting in settings {
-        sqlx::query("INSERT OR REPLACE INTO app_setting (key, value) VALUES (?, ?)")
+        sqlx::query("INSERT OR IGNORE INTO app_setting (key, value) VALUES (?, ?)")
             .bind(setting.key)
             .bind(setting.value)
             .execute(&mut *tx)
