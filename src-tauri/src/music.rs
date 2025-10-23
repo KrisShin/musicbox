@@ -7,7 +7,7 @@ use tauri_plugin_http::reqwest;
 
 use crate::{
     model::{ExistingMusicDetail, Music, ToggleMusicPayload, UpdateDetailPayload},
-    my_util::{calculate_file_hash, get_app_setting, DbPool},
+    my_util::{DbPool, calculate_file_hash, get_app_setting},
 };
 
 pub async fn save_music(pool: &DbPool, music_list: Vec<Music>) -> Result<(), sqlx::Error> {
@@ -582,10 +582,13 @@ pub async fn export_music_file(
                     // 文件大小一致，再比较哈希值
                     let source_hash = calculate_file_hash(&source_path).ok();
                     let dest_hash = calculate_file_hash(&initial_dest_path).ok();
-                    
+
                     if source_hash.is_some() && source_hash == dest_hash {
                         // 哈希值也一致，确定是相同文件，跳过
-                        println!("文件 '{}' 已存在且内容一致，跳过。", initial_dest_path.display());
+                        println!(
+                            "文件 '{}' 已存在且内容一致，跳过。",
+                            initial_dest_path.display()
+                        );
                         skipped_identical_count += 1;
                         continue 'music_loop; // 直接进入下一首歌曲的循环
                     }

@@ -1,4 +1,14 @@
-import { Button, Checkbox, Flex, Form, Input, List, Modal, Radio, Typography } from "antd";
+import {
+  Button,
+  Checkbox,
+  Flex,
+  Form,
+  Input,
+  List,
+  Modal,
+  Radio,
+  Typography,
+} from "antd";
 import React, { useEffect, useState } from "react";
 import {
   ClearOutlined,
@@ -20,7 +30,9 @@ import { primaryThemeColor } from "../../main";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { relaunch } from '@tauri-apps/plugin-process';
+import { relaunch } from "@tauri-apps/plugin-process";
+import { open as openShell } from "@tauri-apps/plugin-shell";
+import { platform } from "@tauri-apps/plugin-os";
 
 const { Paragraph } = Typography;
 
@@ -67,13 +79,21 @@ const SettingPage: React.FC = () => {
     {
       tag: "exportDB",
       title: "导出播放列表",
-      icon: <ExportOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />,
+      icon: (
+        <ExportOutlined
+          style={{ fontSize: iconSize, color: primaryThemeColor }}
+        />
+      ),
       desc: "导出播放列表给其他MusicBox客户端",
     },
     {
       tag: "importDB",
       title: "导入播放列表",
-      icon: <SelectOutlined style={{ fontSize: iconSize, color: primaryThemeColor }} />,
+      icon: (
+        <SelectOutlined
+          style={{ fontSize: iconSize, color: primaryThemeColor }}
+        />
+      ),
       desc: "导入来自其他MusicBox客户端的播放列表",
     },
     {
@@ -89,7 +109,11 @@ const SettingPage: React.FC = () => {
     {
       tag: "feedback",
       title: "反馈与支持",
-      icon: <SendOutlined style={{ fontSize: iconSize, color: "" }} />,
+      icon: (
+        <SendOutlined
+          style={{ fontSize: iconSize, color: primaryThemeColor }}
+        />
+      ),
       desc: "反馈意见或建议给开发者",
     },
     {
@@ -111,7 +135,7 @@ const SettingPage: React.FC = () => {
         />
       ),
       desc: "关于MusicBox的一些信息",
-      extra: `v${appVersion}`
+      extra: `v${appVersion}`,
     },
     {
       tag: "reset",
@@ -121,7 +145,10 @@ const SettingPage: React.FC = () => {
     },
   ];
 
-  const performImport = async (bytes: Uint8Array, mode: "replace" | "merge") => {
+  const performImport = async (
+    bytes: Uint8Array,
+    mode: "replace" | "merge"
+  ) => {
     try {
       messageApi.loading("正在导入数据，请勿操作应用...", 0);
       // 6. [核心改动] 调用新的后端命令
@@ -147,7 +174,7 @@ const SettingPage: React.FC = () => {
         okText: "立即重启",
         onOk: async () => {
           await relaunch();
-        }
+        },
       });
     }
   };
@@ -159,13 +186,13 @@ const SettingPage: React.FC = () => {
     messageApi.info(`功能尚未完成, 请等待后续版本`, 1);
   };
   const handleExportDB = async () => {
-    messageApi.info("数据导出中...")
-    let path: string = await invoke("export_db_file")
-    messageApi.destroy()
+    messageApi.info("数据导出中...");
+    let path: string = await invoke("export_db_file");
+    messageApi.destroy();
     if (path) {
-      messageApi.success(path)
+      messageApi.success(path);
     } else {
-      messageApi.error('导出失败, 请稍后重试')
+      messageApi.error("导出失败, 请稍后重试");
     }
   };
   const handleImportDB = async () => {
@@ -222,8 +249,38 @@ const SettingPage: React.FC = () => {
     messageApi.info("正在检查更新...", 1);
     checkForUpdates({ force: true, messageApi, modalApi }); // 强制检查
   };
-  const handleFeedback = () => {
-    messageApi.info(`功能尚未完成, 请等待后续版本`, 1);
+  const handleFeedback = async () => {
+    // 1. 定义您的反馈邮箱
+    const feedbackEmail = "krisshin@yeah.net";
+
+    // 2. 自动填充主题和正文，附带版本和平台信息
+    const subject = `MusicBox 用户反馈 (v${appVersion})`;
+    const body = `
+[请在这里详细描述您遇到的问题或建议]
+
+[请详细描述您遇到问题的复现步骤]
+
+---
+请保留以下信息以便开发者排查问题：
+App 版本: v${appVersion}
+平台: ${platform()}
+---
+`;
+
+    // 3. 构建 mailto 链接
+    const mailto = `mailto:${feedbackEmail}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+
+    // 4. 使用 shell 插件打开链接
+    try {
+      await openShell(mailto);
+    } catch (error) {
+      console.error("无法打开邮件客户端:", error);
+      messageApi.error(
+        `无法自动打开邮件客户端，请手动发送邮件至: ${feedbackEmail}`
+      );
+    }
   };
   const handlePrivacy = () => {
     navigate("/setting/privacy");
@@ -348,10 +405,13 @@ const SettingPage: React.FC = () => {
             actions={
               item.extra
                 ? [
-                  <span key="1" style={{ fontSize: "0.75rem", color: "#888" }}>
-                    {item.extra}
-                  </span>,
-                ]
+                    <span
+                      key="1"
+                      style={{ fontSize: "0.75rem", color: "#888" }}
+                    >
+                      {item.extra}
+                    </span>,
+                  ]
                 : []
             }
           >

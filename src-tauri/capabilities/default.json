@@ -44,6 +44,7 @@
     "os:default",
     "notification:default",
     "opener:default",
-    "process:default"
+    "process:default",
+    "shell:default"
   ]
 }
