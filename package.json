@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.1.13",
-  "releaseNotes": "Release 20250925 \n1. [优化]下载文件重复命名逻辑  \n2. [优化]重复触发下载阻塞  \n3. [优化]下载阻塞逻辑判断规则 \n4. [优化]页面布局单位 \n5. [新增]可以新增歌单了(最多8个, 应该是够用了) \n6. [新增]缓存已选中的歌单 \n7. [优化]重构搜索页面, 优化使用体验 \n8. [新增]选中歌单缓存 \n9. [修复]部分地方展示位置错误 \n10. [新增]软件当前版本号 \n11. [新增]删除歌单操作 \n12. [新增]导入其他设备的歌单 \n13. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
+  "version": "2.1.14",
+  "releaseNotes": "Release 20260202 \n1. [修复]歌曲解析失败导致无法下载和播放 \n2. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/api": "~2",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2",
     "@tauri-apps/plugin-process": "~2",
+    "@tauri-apps/plugin-shell": "~2",
     "antd": "^5.26.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
