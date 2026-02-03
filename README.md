@@ -7,6 +7,14 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 
 ## Change log
 
+### Release 20260203 
+- 1. [修复]无法搜到歌曲 
+- 2. [修复]部分已知bug
+
+### Release 20260202 
+- 1. [修复]歌曲解析失败导致无法下载和播放 
+- 2. [修复]部分已知bug
+
 ### Release 20250925
 - 1. [优化]下载文件重复命名逻辑 
 - 2. [优化]重复触发下载阻塞 

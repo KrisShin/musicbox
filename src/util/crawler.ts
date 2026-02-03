@@ -32,14 +32,17 @@ export const searchMusic = async (keyword: string): Promise<SearchResult> => {
 
     // 2. [核心修改] 使用新的、更健壮的选择器
     // 直接选取所有包含歌曲信息的 <a> 标签，它的 class="music-link" 非常独特
-    const linkElements = doc.querySelectorAll("a.music-link");
+    const linkElements = doc.querySelectorAll("a.btn-play-download");
 
     const musicList: Music[] = [];
 
-    linkElements.forEach((link) => {
+    linkElements.forEach((link:any) => {
       // 3. 使用更精确的选择器分别获取标题和艺术家
-      const title = link.querySelector("span.music-title > span")?.textContent;
-      const artist = link.querySelector("small.text-jade")?.textContent;
+      const title_artist_string = link?.title
+      const title = title_artist_string.split(' - ')[0]
+      const artist = title_artist_string.split(' - ')[1]
+      // const title = link.querySelector("span.music-title > span")?.textContent;
+      // const artist = link.querySelector("small.text-jade")?.textContent;
       const detailUrl = link.getAttribute("href"); // 例如: /music/4188
 
       if (title && artist && detailUrl) {
