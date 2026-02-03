@@ -42,14 +42,13 @@ export const searchMusic = async (keyword: string): Promise<SearchResult> => {
         // 链接找 href 包含 /music/ 的
         const linkElement = row.querySelector('a[href^="/music/"]');
         const href = linkElement?.getAttribute("href");
-        const id = href?.split("/").pop(); // 提取 782626
 
-        return { title, artist, id, href };
+        return { title, artist, href };
       })
-      .filter((item) => item.id); // 过滤掉无效行
+      .filter((item) => item.href); // 过滤掉无效行
     const musicList: Music[] = [];
 
-    results.forEach(({ title, artist, id, href }) => {
+    results.forEach(({ title, artist, href }) => {
       const detailUrl = href;
 
       if (title && artist && detailUrl) {
