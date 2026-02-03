@@ -30,20 +30,27 @@ export const searchMusic = async (keyword: string): Promise<SearchResult> => {
     const htmlText = (await response.text()) as string;
     const doc = parser.parseFromString(htmlText, "text/html");
 
-    // 2. [核心修改] 使用新的、更健壮的选择器
-    // 直接选取所有包含歌曲信息的 <a> 标签，它的 class="music-link" 非常独特
-    const linkElements = doc.querySelectorAll("a.btn-play-download");
+    const rows = doc.querySelectorAll(".row.no-gutters.py-2d5");
 
+    const results = Array.from(rows)
+      .map((row) => {
+        // 2. 在每一行内寻找特定的元素
+        // 歌名通常在 text-primary 类下
+        const title = row.querySelector(".text-primary")?.textContent?.trim();
+        // 歌手通常在 text-jade 类下
+        const artist = row.querySelector(".text-jade")?.textContent?.trim();
+        // 链接找 href 包含 /music/ 的
+        const linkElement = row.querySelector('a[href^="/music/"]');
+        const href = linkElement?.getAttribute("href");
+        const id = href?.split("/").pop(); // 提取 782626
+
+        return { title, artist, id, href };
+      })
+      .filter((item) => item.id); // 过滤掉无效行
     const musicList: Music[] = [];
 
-    linkElements.forEach((link:any) => {
-      // 3. 使用更精确的选择器分别获取标题和艺术家
-      const title_artist_string = link?.title
-      const title = title_artist_string.split(' - ')[0]
-      const artist = title_artist_string.split(' - ')[1]
-      // const title = link.querySelector("span.music-title > span")?.textContent;
-      // const artist = link.querySelector("small.text-jade")?.textContent;
-      const detailUrl = link.getAttribute("href"); // 例如: /music/4188
+    results.forEach(({ title, artist, id, href }) => {
+      const detailUrl = href;
 
       if (title && artist && detailUrl) {
         // 4. [核心修改] 从 URL 中提取 song_id，新方式更简单可靠
@@ -126,7 +133,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
     await invoke("update_music_detail", { payload: payload });
     const file_path = await invoke<string | undefined>(
       "cache_music_and_get_file_path",
-      { music: payload }
+      { music: payload },
     );
     console.log(`(Crawler) 成功爬取并更新到数据库: ${music.title}`);
 
@@ -152,7 +159,7 @@ export const musicDetail = async (music: Music): Promise<Music> => {
 
 export const fetchMusicPlayUrl = async (
   music: Music,
-  fullDetailUrl: string
+  fullDetailUrl: string,
 ): Promise<string | null> => {
   const apiUrl = `${BASE_URL}/api/play-url`;
 
@@ -181,7 +188,7 @@ export const fetchMusicPlayUrl = async (
 
 export const fetchMusicDetailInfo = async (
   music: Music,
-  fullDetailUrl: string
+  fullDetailUrl: string,
 ): Promise<Music> => {
   const response = await tauriFetch(fullDetailUrl, { method: "GET" });
   if (!response.ok) {
@@ -190,7 +197,9 @@ export const fetchMusicDetailInfo = async (
   const htmlText = (await response.text()) as string;
 
   // 步骤 2: [核心修改] 使用正则表达式从 HTML 中提取 window.appData
-  const appDataMatch = htmlText.match(/JSON\.parse\(\s*'((?:[^'\\]|\\.)*?)'\s*\)/);
+  const appDataMatch = htmlText.match(
+    /JSON\.parse\(\s*'((?:[^'\\]|\\.)*?)'\s*\)/,
+  );
   if (!appDataMatch || !appDataMatch[1]) {
     throw new Error("在详情页中未能解析出 appData");
   }
@@ -210,7 +219,7 @@ export const fetchMusicDetailInfo = async (
   // 步骤 3: 使用 DOMParser 解析静态信息（作为备用和补充）
   const doc = parser.parseFromString(htmlText, "text/html");
   const cover_url = doc.querySelector<HTMLMetaElement>(
-    'meta[property="og:image"]'
+    'meta[property="og:image"]',
   )?.content;
   const lyric =
     doc

@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.1.15",
-  "releaseNotes": "Release 20260203 \n1. [修复]无法搜索歌曲的问题 \n2. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
+  "version": "2.1.16",
+  "releaseNotes": "Release 20260203 \n1. [修复]更新搜索音乐解析方式, 解决源更新的匹配问题 \n2. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
   "type": "module",
   "scripts": {
     "dev": "vite",
