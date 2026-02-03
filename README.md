@@ -7,17 +7,25 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 
 ## Change log
 
-### Release 20260203 
-- 1. [修复]无法搜到歌曲 
+### Release 20260203
+
+- 1. [修复]更新搜索音乐解析方式, 解决源更新的匹配问题
 - 2. [修复]部分已知bug
 
-### Release 20260202 
-- 1. [修复]歌曲解析失败导致无法下载和播放 
+### Release 20260203
+
+- 1. [修复]无法搜到歌曲
+- 2. [修复]部分已知bug
+
+### Release 20260202
+
+- 1. [修复]歌曲解析失败导致无法下载和播放
 - 2. [修复]部分已知bug
 
 ### Release 20250925
-- 1. [优化]下载文件重复命名逻辑 
-- 2. [优化]重复触发下载阻塞 
+
+- 1. [优化]下载文件重复命名逻辑
+- 2. [优化]重复触发下载阻塞
 - 3. [优化]下载阻塞逻辑判断规则
 - 4. [优化]页面布局单位
 - 5. [新增]可以新增歌单了(最多8个, 应该是够用了)
@@ -31,6 +39,7 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 - 13. [修复]部分已知bug
 
 ### 待修复
+
 - 1. 安卓10及以下公共存储空间读写权限问题导致无法下载
 
 #### Release 20250917
