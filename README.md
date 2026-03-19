@@ -7,6 +7,11 @@ We will support multi-platform, welcome try in [Release](https://github.com/Kris
 
 ## Change log
 
+### Release 20260319
+
+- 1. [修复]更新播放音乐解析方式, 播放数据解析问题
+- 2. [修复]部分已知bug
+
 ### Release 20260203
 
 - 1. [修复]更新搜索音乐解析方式, 解决源更新的匹配问题
