@@ -197,7 +197,7 @@ export const fetchMusicDetailInfo = async (
 
   // 步骤 2: [核心修改] 使用正则表达式从 HTML 中提取 window.appData
   const appDataMatch = htmlText.match(
-    /JSON\.parse\(\s*'((?:[^'\\]|\\.)*?)'\s*\)/,
+    /window\.appData = JSON\.parse\(\s*'((?:[^'\\]|\\.)*?)'\s*\)/,
   );
   if (!appDataMatch || !appDataMatch[1]) {
     throw new Error("在详情页中未能解析出 appData");

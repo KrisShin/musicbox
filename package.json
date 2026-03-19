@@ -1,8 +1,8 @@
 {
   "name": "musicbox",
   "private": true,
-  "version": "2.1.16",
-  "releaseNotes": "Release 20260203 \n1. [修复]更新搜索音乐解析方式, 解决源更新的匹配问题 \n2. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
+  "version": "2.1.17",
+  "releaseNotes": "Release 20260319\n1. [修复]更新播放音乐解析方式, 播放数据解析问题\n2. [修复]部分已知bug  \n\n待修复 \n1. 安卓10及以下公共存储空间读写权限问题导致无法下载",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,10 +25,11 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.8.2",
+    "tauri": "^0.15.0",
     "zustand": "^5.0.7"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
